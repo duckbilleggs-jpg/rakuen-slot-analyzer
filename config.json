@@ -1,0 +1,25 @@
+{
+  "schedule": {
+    "enabled": true,
+    "startHour": 18,
+    "startMinute": 0,
+    "endHour": 23,
+    "endMinute": 30,
+    "intervalMinutes": 30
+  },
+  "closingTime": {
+    "hour": 22,
+    "minute": 40
+  },
+  "analysis": {
+    "minGames": 2000,
+    "secondsPerGame": 4.1,
+    "coinRate": 46,
+    "inPerGame": 3
+  },
+  "scrape": {
+    "storeTag": "楽園立川店",
+    "baseUrl": "https://min-repo.com",
+    "requestIntervalMs": 1000
+  }
+}

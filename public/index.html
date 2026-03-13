@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎰 楽園立川 設定判別ダッシュボード</title>
+  <meta name="description" content="楽園立川のスロット設定判別ツール。設定5以上の高設定台をリアルタイム分析。">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- ヘッダー -->
+  <header id="header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🎰</span>
+        <div>
+          <h1>楽園立川 設定判別</h1>
+          <p class="subtitle" id="dateDisplay">読み込み中...</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="status-badge" id="statusBadge">
+          <span class="status-dot"></span>
+          <span id="statusText">接続中</span>
+        </div>
+        <button class="btn btn-primary" id="btnScrape" onclick="manualScrape()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg>
+          データ取得
+        </button>
+        <button class="btn btn-ghost" id="btnConfig" onclick="toggleConfig()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 設定パネル -->
+  <div class="config-panel" id="configPanel" style="display:none">
+    <div class="config-content">
+      <h3>⚙️ 設定</h3>
+      <div class="config-grid">
+        <div class="config-group">
+          <label>自動取得</label>
+          <div class="config-row">
+            <label class="switch"><input type="checkbox" id="cfgEnabled" checked><span class="slider"></span></label>
+            <span>有効</span>
+          </div>
+        </div>
+        <div class="config-group">
+          <label>取得期間</label>
+          <div class="config-row">
+            <input type="number" id="cfgStartH" min="0" max="23" value="18" class="input-sm"> :
+            <input type="number" id="cfgStartM" min="0" max="59" value="0" class="input-sm"> 〜
+            <input type="number" id="cfgEndH" min="0" max="23" value="23" class="input-sm"> :
+            <input type="number" id="cfgEndM" min="0" max="59" value="30" class="input-sm">
+          </div>
+        </div>
+        <div class="config-group">
+          <label>取得間隔(分)</label>
+          <input type="number" id="cfgInterval" min="5" max="120" value="30" class="input-sm">
+        </div>
+        <div class="config-group">
+          <label>閉店時間</label>
+          <div class="config-row">
+            <input type="number" id="cfgCloseH" min="0" max="23" value="22" class="input-sm"> :
+            <input type="number" id="cfgCloseM" min="0" max="59" value="40" class="input-sm">
+          </div>
+        </div>
+        <div class="config-group">
+          <label>最低G数</label>
+          <input type="number" id="cfgMinGames" min="500" max="10000" value="2000" class="input-sm">
+        </div>
+        <div class="config-group">
+          <label>1Gあたり秒数</label>
+          <input type="number" id="cfgSecPerGame" min="1" max="10" step="0.1" value="4.1" class="input-sm">
+        </div>
+      </div>
+      <div class="config-actions">
+        <button class="btn btn-primary" onclick="saveConfig()">保存</button>
+        <button class="btn btn-ghost" onclick="toggleConfig()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- メイン -->
+  <main>
+    <!-- サマリーカード -->
+    <div class="summary-bar">
+      <div class="summary-card">
+        <span class="summary-value" id="totalMachines">-</span>
+        <span class="summary-label">全台数</span>
+      </div>
+      <div class="summary-card highlight">
+        <span class="summary-value" id="highSettingCount">-</span>
+        <span class="summary-label">設定5以上</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-value" id="lastUpdate">-</span>
+        <span class="summary-label">最終更新</span>
+      </div>
+      <div class="summary-card">
+        <span class="summary-value" id="timeToClose">-</span>
+        <span class="summary-label">閉店まで</span>
+      </div>
+    </div>
+
+    <!-- フィルタ -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label>ソート</label>
+        <select id="sortSelect" onchange="renderTable()">
+          <option value="ev">期待値(円)順</option>
+          <option value="setting">推定設定順</option>
+          <option value="rate">出率順</option>
+          <option value="confidence">信頼度順</option>
+          <option value="samai">差枚順</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>機種フィルタ</label>
+        <select id="machineFilter" onchange="renderTable()">
+          <option value="all">全機種</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- テーブル -->
+    <div class="table-container" id="tableContainer">
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>データを読み込んでいます...</p>
+      </div>
+      <table id="dataTable" style="display:none">
+        <thead>
+          <tr>
+            <th class="th-setting">推定</th>
+            <th class="th-trust">信頼度</th>
+            <th>機種名</th>
+            <th>台番</th>
+            <th class="th-num">出率</th>
+            <th class="th-num">差枚</th>
+            <th class="th-num">G数</th>
+            <th class="th-num">残りG</th>
+            <th class="th-num highlight-col">期待差枚</th>
+            <th class="th-num highlight-col">期待値(円)</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+      </table>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <p>🔍 設定5以上の台は見つかりませんでした</p>
+        <p class="empty-sub">データ取得ボタンを押すか、自動取得時間をお待ちください</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- フッター -->
+  <footer>
+    <p>データソース: <a href="https://min-repo.com" target="_blank" rel="noopener">みんレポ</a> | 自動更新: <span id="footerSchedule">-</span></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -5,6 +5,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cron = require('node-cron');
+const { connectDB } = require('./database');
 const { scrapeToday, scrapeRecent, loadDayData, todayKey, normalizeDateKey } = require('./scraper');
 const { analyzeHighSetting, analyzeAll } = require('./analyzer');
 const { updateDBForNewMachines } = require('./machine_lookup');
@@ -31,12 +32,12 @@ let lastScrapeError = null;
 // ============================
 
 /** 最新の利用可能データを取得（今日→前日→前々日とフォールバック） */
-function getLatestData() {
+async function getLatestData() {
   for (let i = 0; i < 3; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const data = loadDayData(key);
+    const data = await loadDayData(key);
     if (data && data.machines && data.machines.length > 0) {
       return { data, dateKey: key };
     }
@@ -45,8 +46,8 @@ function getLatestData() {
 }
 
 /** データが古いかチェック（6時間以上前 or 無い場合） */
-function isDataStale() {
-  const { data, dateKey } = getLatestData();
+async function isDataStale() {
+  const { data, dateKey } = await getLatestData();
   if (!data) return true;
   if (lastScrapeTime) {
     const elapsed = Date.now() - new Date(lastScrapeTime).getTime();
@@ -55,37 +56,35 @@ function isDataStale() {
   return true;
 }
 
-/** ヘルスチェック（外部cronサービス用） */
-app.get('/health', (req, res) => {
-  // データが古ければバックグラウンドで自動スクレイプ
-  if (isDataStale() && scrapeStatus !== 'running') {
-    console.log('[Auto] データが古いため自動スクレイプを開始');
+app.get('/health', async (req, res) => {
+  if (await isDataStale() && scrapeStatus !== 'running') {
+    console.log('[Auto] データが古いため自動スクレイプを開始(Health Check)');
     runScrape();
   }
   res.json({ status: 'ok', lastScrape: lastScrapeTime, scrapeStatus });
 });
 
 /** 設定5以上の高設定台一覧 */
-app.get('/api/high-setting', (req, res) => {
+app.get('/api/high-setting', async (req, res) => {
   try {
-    // データが古ければバックグラウンドで自動スクレイプ
-    if (isDataStale() && scrapeStatus !== 'running') {
-      console.log('[Auto] データが古いため自動スクレイプを開始');
+    if (await isDataStale() && scrapeStatus !== 'running') {
+      console.log('[Auto] データが古いため自動スクレイプを開始(API Request)');
       runScrape();
     }
-    const { data } = getLatestData();
+    const { data } = await getLatestData();
     if (!data || !data.machines) {
-      return res.json({ machines: [], lastScrape: lastScrapeTime, scrapeStatus, message: 'データ取得中です。30秒後にリロードしてください。' });
+      return res.json({ machines: [], lastScrape: lastScrapeTime, scrapeStatus, message: 'データがありません。手動取得または定期スクレイプをお待ちください。' });
     }
     const config = loadConfig();
     const now = lastScrapeTime ? new Date(lastScrapeTime) : new Date();
-    const highSetting = analyzeHighSetting(data.machines, now);
+    const highSetting = analyzeHighSetting(data.machines, now, data.id);
     res.json({
       machines: highSetting,
       lastScrape: lastScrapeTime,
       closingTime: `${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`,
       totalMachines: data.machines.length,
-      date: data.date
+      date: data.date,
+      reportId: data.id
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -93,9 +92,9 @@ app.get('/api/high-setting', (req, res) => {
 });
 
 /** 全台データ */
-app.get('/api/all', (req, res) => {
+app.get('/api/all', async (req, res) => {
   try {
-    const { data } = getLatestData();
+    const { data } = await getLatestData();
     if (!data || !data.machines) {
       return res.json({ machines: [], lastScrape: lastScrapeTime, message: 'データがありません' });
     }
@@ -103,7 +102,8 @@ app.get('/api/all', (req, res) => {
       machines: data.machines,
       lastScrape: lastScrapeTime,
       totalMachines: data.machines.length,
-      date: data.date
+      date: data.date,
+      reportId: data.id
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -245,7 +245,9 @@ function getLocalIP() {
   return 'localhost';
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
+  await connectDB();
+  
   const ip = getLocalIP();
   console.log(`\n🎰 楽園立川スロット設定判別ツール`);
   console.log(`   📱 スマホ → http://${ip}:${PORT}`);

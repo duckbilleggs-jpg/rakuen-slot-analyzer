@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: rakuen-slot-analyzer
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: MONGODB_URI
+        sync: false  # Render ダッシュボードで手動入力
+      - key: NODE_ENV
+        value: production

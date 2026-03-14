@@ -10,9 +10,10 @@ const { loadDB, getDefaultSpecs } = require('./machine_lookup');
  * 設定判別＋期待値計算のメイン関数
  * @param {Array} machines - スクレイプした台データ配列
  * @param {Date} [asOfTime] - データ取得時刻（デフォルト: 現在時刻）
+ * @param {string} [reportId] - 元データのレポートID
  * @returns {Array} 設定5以上と推定される台のリスト
  */
-function analyzeHighSetting(machines, asOfTime = new Date()) {
+function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null) {
   const db = loadDB();
   const results = [];
 
@@ -52,7 +53,9 @@ function analyzeHighSetting(machines, asOfTime = new Date()) {
       残りG数: ev.残りG数,
       期待差枚: ev.期待差枚,
       期待値円: ev.期待値円,
-      閉店まで: ev.閉店まで
+      期待値円: ev.期待値円,
+      閉店まで: ev.閉店まで,
+      reportId: reportId
     });
   }
 

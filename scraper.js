@@ -6,6 +6,7 @@ const http = require('http');
 const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
+const { Machine } = require('./database');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -104,9 +105,35 @@ async function scrapeRecent(days = 1) {
     const dateKey = normalizeDateKey(d.date);
     allData[dateKey] = { date: d.date, id: d.id, machines: rows };
 
-    // 日別ファイル保存
+    // 日別ファイル保存 (バックアップ用途で一応残す)
     const filePath = path.join(DATA_DIR, `${dateKey}.json`);
     fs.writeFileSync(filePath, JSON.stringify({ date: d.date, id: d.id, machines: rows }, null, 2), 'utf-8');
+
+    // MongoDB への一括 Upsert
+    try {
+      if (rows.length > 0) {
+        const ops = rows.map(m => ({
+          updateOne: {
+            filter: { dateKey, 台番: m.台番 },
+            update: {
+              $set: {
+                reportId: d.id,
+                dateRaw: d.date,
+                機種名: m.機種名,
+                差枚: m.差枚,
+                G数: m.G数,
+                出率: m.出率
+              }
+            },
+            upsert: true
+          }
+        }));
+        await Machine.bulkWrite(ops);
+        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了`);
+      }
+    } catch (err) {
+      console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);
+    }
 
     await sleep(config.scrape.requestIntervalMs);
   }
@@ -133,8 +160,24 @@ function normalizeDateKey(text) {
   return `${year}-${month}-${day}`;
 }
 
-/** 保存済みデータを読み込み */
-function loadDayData(dateKey) {
+/** 保存済みデータを読み込み (MongoDB優先、なければローカルファイル) */
+async function loadDayData(dateKey) {
+  try {
+    const docs = await Machine.find({ dateKey }).lean();
+    if (docs && docs.length > 0) {
+      // 形式を { date, id, machines: [...] } に整えて返す
+      const first = docs[0];
+      return {
+        date: first.dateRaw,
+        id: first.reportId,
+        machines: docs
+      };
+    }
+  } catch (err) {
+    console.error(`[Scraper] DB読み込みエラー(${dateKey}):`, err.message);
+  }
+
+  // DBになければフォールバックとしてローカルファイルを見る
   const filePath = path.join(DATA_DIR, `${dateKey}.json`);
   if (fs.existsSync(filePath)) {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
@@ -150,11 +193,15 @@ function todayKey() {
 
 // CLI 実行
 if (require.main === module) {
+  const { connectDB } = require('./database');
   const args = process.argv.slice(2);
   const days = args.includes('--test') ? 1 : parseInt(args[0]) || 1;
-  scrapeRecent(days).then(data => {
+  connectDB().then(() => {
+    return scrapeRecent(days);
+  }).then(data => {
     const total = Object.values(data).reduce((s, d) => s + d.machines.length, 0);
     console.log(`[Scraper] 完了: 合計 ${total} 台のデータを取得`);
+    process.exit(0);
   }).catch(err => {
     console.error('[Scraper] エラー:', err.message);
     process.exit(1);

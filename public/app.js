@@ -36,15 +36,25 @@ async function loadData() {
       const t = new Date(data.lastScrape);
       document.getElementById('lastUpdate').textContent =
         `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
+    } else {
+      document.getElementById('lastUpdate').textContent = '-';
     }
 
-    // スクレイプ中なら15秒後にリトライ
-    if (data.scrapeStatus === 'running' || (data.message && currentData.length === 0)) {
+    // 取得中またはデータが無い場合はリトライ処理
+    if (data.scrapeStatus === 'running') {
       document.getElementById('loading').style.display = 'flex';
       document.getElementById('loading').querySelector('p').textContent =
         'データを取得中です...しばらくお待ちください';
       updateStatus('running');
       setTimeout(loadData, 15000);
+      return;
+    }
+    
+    if (currentData.length === 0) {
+      // データがない場合（初回起動時など）は空のテーブルを表示して待機
+      document.getElementById('loading').style.display = 'none';
+      renderTable();
+      updateStatus('idle');
       return;
     }
 
@@ -157,7 +167,9 @@ function renderTable() {
       <tr class="${settingClass}">
         <td><span class="badge ${badgeClass}">設定${m.推定設定}</span></td>
         <td><span class="confidence ${confClass}">${m.信頼度ラベル}</span></td>
-        <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
+        <td class="machine-name" title="${m.機種名}">
+          ${m.reportId ? `<a href="https://min-repo.com/${m.reportId}/?kishu=${encodeURIComponent(m.機種名)}" target="_blank" rel="noopener" style="color:var(--text-primary); text-decoration:underline;">${m.機種名}</a>` : m.機種名}
+        </td>
         <td>${m.台番}</td>
         <td class="td-num">${m.出率.toFixed(1)}%</td>
         <td class="td-num ${samaiClass}">${m.差枚.toLocaleString()}</td>

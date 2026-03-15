@@ -264,6 +264,10 @@ app.listen(PORT, '0.0.0.0', async () => {
   }
   console.log(`   🚪 閉店: ${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`);
   console.log(`   ⏱️  1G=${config.analysis.secondsPerGame}秒 / 最低G数=${config.analysis.minGames}G\n`);
-  setupCronJob();
+  if (SCRAPING_DISABLED) {
+    console.log('[Config] Cronジョブ無効 (DISABLE_SCRAPING=true) - 表示専用モード');
+  } else {
+    setupCronJob();
+  }
 });
 

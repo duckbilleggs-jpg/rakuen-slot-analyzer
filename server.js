@@ -48,12 +48,13 @@ async function getLatestData() {
 /** データが古いかチェック（6時間以上前 or 無い場合） */
 async function isDataStale() {
   const { data, dateKey } = await getLatestData();
+  // データ自体が無い場合は古いと判定
   if (!data) return true;
-  if (lastScrapeTime) {
-    const elapsed = Date.now() - new Date(lastScrapeTime).getTime();
-    return elapsed > 6 * 60 * 60 * 1000; // 6時間
-  }
-  return true;
+  // lastScrapeTime が記録されていない（サーバー起動直後）でも
+  // MongoDBにデータがあればスクレイプ不要と判定する
+  if (!lastScrapeTime) return false;
+  const elapsed = Date.now() - new Date(lastScrapeTime).getTime();
+  return elapsed > 6 * 60 * 60 * 1000; // 6時間以上経過したら古い
 }
 
 app.get('/health', async (req, res) => {

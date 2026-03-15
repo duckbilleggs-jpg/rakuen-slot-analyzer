@@ -9,18 +9,19 @@ const MONGODB_URI = process.env.MONGODB_URI;
 async function connectDB() {
   if (!MONGODB_URI) {
     console.error('[DB] MONGODB_URI が環境変数に設定されていません。');
-    // ローカル実行時用に警告を出すが、エラー終了はさせない（マイグレーションスクリプト等のため）
   } else {
     try {
       if (mongoose.connection.readyState === 0) {
         await mongoose.connect(MONGODB_URI, {
-          useNewUrlParser: true,
-          useUnifiedTopology: true,
+          serverSelectionTimeoutMS: 30000, // 30秒でサーバー選択タイムアウト
+          socketTimeoutMS: 60000,          // 60秒でソケットタイムアウト
+          connectTimeoutMS: 30000,         // 30秒で接続タイムアウト
+          bufferCommands: false,           // 接続前のクエリをバッファせず即エラーにする
         });
         console.log('[DB] MongoDBに接続しました。');
       }
     } catch (e) {
-      console.error('[DB] MongoDB接続エラー:', e);
+      console.error('[DB] MongoDB接続エラー:', e.message);
     }
   }
 }

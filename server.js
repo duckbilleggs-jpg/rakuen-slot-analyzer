@@ -13,6 +13,10 @@ const { updateDBForNewMachines } = require('./machine_lookup');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Renderなど表示専用環境ではスクレイピングを無効化
+const SCRAPING_DISABLED = process.env.DISABLE_SCRAPING === 'true';
+if (SCRAPING_DISABLED) console.log('[Config] スクレイピング無効モード (DISABLE_SCRAPING=true)');
+
 // 設定読み込み
 function loadConfig() {
   return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
@@ -58,17 +62,17 @@ async function isDataStale() {
 }
 
 app.get('/health', async (req, res) => {
-  if (await isDataStale() && scrapeStatus !== 'running') {
+  if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
     console.log('[Auto] データが古いため自動スクレイプを開始(Health Check)');
     runScrape();
   }
-  res.json({ status: 'ok', lastScrape: lastScrapeTime, scrapeStatus });
+  res.json({ status: 'ok', lastScrape: lastScrapeTime, scrapeStatus, scrapingDisabled: SCRAPING_DISABLED });
 });
 
 /** 設定5以上の高設定台一覧 */
 app.get('/api/high-setting', async (req, res) => {
   try {
-    if (await isDataStale() && scrapeStatus !== 'running') {
+    if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
       console.log('[Auto] データが古いため自動スクレイプを開始(API Request)');
       runScrape();
     }

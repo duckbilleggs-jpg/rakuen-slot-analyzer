@@ -250,24 +250,32 @@ function getLocalIP() {
   return 'localhost';
 }
 
-app.listen(PORT, '0.0.0.0', async () => {
-  await connectDB();
-  
-  const ip = getLocalIP();
-  console.log(`\n🎰 楽園立川スロット設定判別ツール`);
-  console.log(`   📱 スマホ → http://${ip}:${PORT}`);
-  console.log(`   💻 PC    → http://localhost:${PORT}`);
-  console.log(`   ─────────────────────────────`);
-  const config = loadConfig();
-  if (config.schedule.enabled) {
-    console.log(`   📅 自動取得: ${config.schedule.startHour}:${String(config.schedule.startMinute).padStart(2, '0')}〜${config.schedule.endHour}:${String(config.schedule.endMinute).padStart(2, '0')} / ${config.schedule.intervalMinutes}分間隔`);
+// DB接続してからサーバー起動
+(async () => {
+  try {
+    await connectDB();
+  } catch (e) {
+    console.error('[DB] 起動時のMongoDB接続失敗:', e.message);
+    // 接続失敗でも起動は継続（ローカル開発用）
   }
-  console.log(`   🚪 閉店: ${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`);
-  console.log(`   ⏱️  1G=${config.analysis.secondsPerGame}秒 / 最低G数=${config.analysis.minGames}G\n`);
-  if (SCRAPING_DISABLED) {
-    console.log('[Config] Cronジョブ無効 (DISABLE_SCRAPING=true) - 表示専用モード');
-  } else {
-    setupCronJob();
-  }
-});
+
+  app.listen(PORT, '0.0.0.0', () => {
+    const ip = getLocalIP();
+    console.log(`\n🎰 楽園立川スロット設定判別ツール`);
+    console.log(`   📱 スマホ → http://${ip}:${PORT}`);
+    console.log(`   💻 PC    → http://localhost:${PORT}`);
+    console.log(`   ─────────────────────────────`);
+    const config = loadConfig();
+    if (config.schedule.enabled) {
+      console.log(`   📅 自動取得: ${config.schedule.startHour}:${String(config.schedule.startMinute).padStart(2, '0')}〜${config.schedule.endHour}:${String(config.schedule.endMinute).padStart(2, '0')} / ${config.schedule.intervalMinutes}分間隔`);
+    }
+    console.log(`   🚪 閉店: ${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`);
+    console.log(`   ⏱️  1G=${config.analysis.secondsPerGame}秒 / 最低G数=${config.analysis.minGames}G\n`);
+    if (SCRAPING_DISABLED) {
+      console.log('[Config] Cronジョブ無効 (DISABLE_SCRAPING=true) - 表示専用モード');
+    } else {
+      setupCronJob();
+    }
+  });
+})();
 

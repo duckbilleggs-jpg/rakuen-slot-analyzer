@@ -13,15 +13,15 @@ async function connectDB() {
     try {
       if (mongoose.connection.readyState === 0) {
         await mongoose.connect(MONGODB_URI, {
-          serverSelectionTimeoutMS: 30000, // 30秒でサーバー選択タイムアウト
-          socketTimeoutMS: 60000,          // 60秒でソケットタイムアウト
-          connectTimeoutMS: 30000,         // 30秒で接続タイムアウト
-          bufferCommands: false,           // 接続前のクエリをバッファせず即エラーにする
+          serverSelectionTimeoutMS: 30000,
+          socketTimeoutMS: 60000,
+          connectTimeoutMS: 30000,
         });
         console.log('[DB] MongoDBに接続しました。');
       }
     } catch (e) {
       console.error('[DB] MongoDB接続エラー:', e.message);
+      throw e; // 呼び出し元でエラーを検知できるように再スロー
     }
   }
 }

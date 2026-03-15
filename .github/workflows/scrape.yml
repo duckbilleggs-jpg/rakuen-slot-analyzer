@@ -1,0 +1,31 @@
+name: 自動スクレイピング - 楽園立川
+
+on:
+  schedule:
+    # JST 18:00〜23:30 に30分ごと実行 (UTC 09:00〜14:30)
+    - cron: '0,30 9-14 * * *'
+  workflow_dispatch:  # 手動実行も可能
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 依存パッケージインストール
+        run: npm ci
+
+      - name: スクレイピング実行
+        run: node scraper.js 1
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        timeout-minutes: 8

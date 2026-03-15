@@ -40,7 +40,7 @@ async function loadData() {
       document.getElementById('lastUpdate').textContent = '-';
     }
 
-    // 取得中またはデータが無い場合はリトライ処理
+    // 取得中の場合はリトライ処理
     if (data.scrapeStatus === 'running') {
       document.getElementById('loading').style.display = 'flex';
       document.getElementById('loading').querySelector('p').textContent =
@@ -49,30 +49,21 @@ async function loadData() {
       setTimeout(loadData, 15000);
       return;
     }
-    
-    if (currentData.length === 0) {
-      // データがない場合（初回起動時など）は空のテーブルを表示して待機
-      document.getElementById('loading').style.display = 'none';
-      renderTable();
-      updateStatus('idle');
-      return;
-    }
 
-    // 閉店カウントダウン
-    updateCountdown();
-
-    // 機種フィルタ更新
-    updateMachineFilter();
-
-    // テーブル表示
-    renderTable();
-
-    // ローディング非表示
+    // データ有無にかかわらずローディングを非表示
     document.getElementById('loading').style.display = 'none';
+
+    // テーブル描画
+    try { updateCountdown(); } catch(e) { console.warn('updateCountdown:', e); }
+    try { updateMachineFilter(); } catch(e) { console.warn('updateMachineFilter:', e); }
+    try { renderTable(); } catch(e) { console.warn('renderTable:', e); }
+
     updateStatus('idle');
 
   } catch (e) {
     console.error('データ取得エラー:', e);
+    // エラー時もローディングを非表示にして状態を更新
+    document.getElementById('loading').style.display = 'none';
     updateStatus('error');
     // エラー時も30秒後にリトライ
     setTimeout(loadData, 30000);

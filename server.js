@@ -146,11 +146,11 @@ app.get('/api/realtime', async (req, res) => {
         res.json({
             machines: cachedRealtimeData,
             timestamp: lastRealtimeFetch || null,
-            status: realtimeFetchStatus,
-            progress: realtimeProgress,
+            status: 'idle',
+            progress: { current: 0, total: 0, modelName: '' },
             message: cachedRealtimeData.length > 0 
                 ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
-                : 'GitHub Actionsでデータ取得中（初回は数分お待ちください）'
+                : 'データ未取得（GitHub Actionsが営業時間中に自動取得します）'
         });
     } catch (e) {
         console.error('[API] /api/realtime エラー:', e);

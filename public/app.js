@@ -114,23 +114,6 @@ async function fetchRealtimeData() {
     const data = await res.json();
     currentData.realtime = data.machines || [];
 
-    // 取得中の場合は進捗を表示し、5秒後にポーリング
-    if (data.status === 'running') {
-      const p = data.progress || {};
-      if (p.total > 0) {
-        document.getElementById('dateDisplay').textContent = `取得中... ${p.current}/${p.total} 機種 (${p.modelName || ''})`;
-      } else {
-        document.getElementById('dateDisplay').textContent = '取得中... ブラウザ起動中';
-      }
-      // 既にデータがある場合は表示しつつポーリング
-      if (currentData.realtime.length > 0) {
-        setLoading(false);
-        renderRealtimeTable();
-      }
-      setTimeout(() => { if (activeTab === 'realtime') fetchRealtimeData(); }, 5000);
-      return;
-    }
-
     // 最終更新時間を表示
     if (data.timestamp) {
       const t = new Date(data.timestamp);

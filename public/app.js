@@ -426,7 +426,7 @@ async function manualScrape() {
 
   try {
     if (activeTab === 'realtime') {
-      // リアルタイムタブ: MongoDBキャッシュを再読み込み
+      // リアルタイムタブ: 最新データを再読み込み
       await fetchRealtimeData();
       btn.disabled = false;
       btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg> データ取得';

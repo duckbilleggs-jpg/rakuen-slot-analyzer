@@ -146,6 +146,32 @@
       </div>
     </div>
 
+    <!-- フィルタ (リアルタイム用) -->
+    <div class="filter-bar" id="filterBarRealtime" style="display:none">
+      <div class="filter-group">
+        <label>設定フィルタ</label>
+        <select id="realtimeSettingFilter" onchange="renderRealtimeTable()">
+          <option value="all">全台表示</option>
+          <option value="high">設定5/6のみ</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>機種フィルタ</label>
+        <select id="realtimeMachineFilter" onchange="renderRealtimeTable()">
+          <option value="all">全機種</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>ソート</label>
+        <select id="realtimeSortSelect" onchange="renderRealtimeTable()">
+          <option value="ev">期待値(円)順</option>
+          <option value="setting">推定設定順</option>
+          <option value="prob">合算確率順</option>
+          <option value="games">G数順</option>
+        </select>
+      </div>
+    </div>
+
     <!-- テーブルコンテナ群 -->
     <div class="table-container" id="tableContainer">
       <div class="loading" id="loading">

@@ -43,6 +43,7 @@ function switchTab(tabId) {
   
   // フィルタバーやサマリーカードの表示調整
   document.getElementById('filterBarPast').style.display = (tabId === 'past') ? 'flex' : 'none';
+  document.getElementById('filterBarRealtime').style.display = (tabId === 'realtime') ? 'flex' : 'none';
   document.getElementById('summaryBar').style.display = (tabId === 'past') ? 'grid' : 'none';
 
   // データ取得＆描画
@@ -102,11 +103,33 @@ async function fetchPastData() {
 // ============================
 async function fetchRealtimeData() {
   setLoading(true);
-  document.getElementById('dateDisplay').textContent = '本日 (リアルタイム)';
   try {
     const res = await fetch('/api/realtime');
     const data = await res.json();
     currentData.realtime = data.machines || [];
+
+    // 最終更新時間を表示
+    if (data.timestamp) {
+      const t = new Date(data.timestamp);
+      const timeStr = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
+      document.getElementById('dateDisplay').textContent = `本日 (リアルタイム) | 最終更新: ${timeStr}`;
+    } else {
+      document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | 未取得';
+    }
+
+    // リアルタイム用の機種フィルタを更新
+    const names = [...new Set(currentData.realtime.map(m => m.機種名))].sort();
+    const select = document.getElementById('realtimeMachineFilter');
+    const currentVal = select.value;
+    select.innerHTML = '<option value="all">全機種</option>';
+    names.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      select.appendChild(opt);
+    });
+    if (names.includes(currentVal)) select.value = currentVal;
+
     setLoading(false);
     renderRealtimeTable();
   } catch (e) {
@@ -237,7 +260,30 @@ function renderRealtimeTable() {
     const tbody = document.getElementById('tableBodyRealtime');
     const empty = document.getElementById('emptyState');
     
-    if (currentData.realtime.length === 0) {
+    let filtered = [...currentData.realtime];
+
+    // 設定フィルタ
+    const settingFilter = document.getElementById('realtimeSettingFilter').value;
+    if (settingFilter === 'high') {
+        filtered = filtered.filter(m => m.推定設定 >= 5);
+    }
+
+    // 機種フィルタ
+    const machineFilter = document.getElementById('realtimeMachineFilter').value;
+    if (machineFilter !== 'all') {
+        filtered = filtered.filter(m => m.機種名 === machineFilter);
+    }
+
+    // ソート
+    const sortKey = document.getElementById('realtimeSortSelect').value;
+    switch (sortKey) {
+        case 'ev': filtered.sort((a, b) => (b.期待値円 || 0) - (a.期待値円 || 0)); break;
+        case 'setting': filtered.sort((a, b) => (b.推定設定 || 0) - (a.推定設定 || 0) || (b.期待値円 || 0) - (a.期待値円 || 0)); break;
+        case 'prob': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
+        case 'games': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
+    }
+
+    if (filtered.length === 0) {
         table.style.display = 'none';
         empty.style.display = 'block';
         return;
@@ -246,21 +292,33 @@ function renderRealtimeTable() {
     table.style.display = 'table';
     empty.style.display = 'none';
 
-    tbody.innerHTML = currentData.realtime.map(m => {
-        const settingClass = m.推定設定 === 6 ? 'setting-6' : 'setting-5';
-        const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
+    tbody.innerHTML = filtered.map(m => {
+        let settingClass = '';
+        let badgeClass = '';
+        let badgeText = '';
+        if (m.推定設定 === 6) {
+            settingClass = 'setting-6'; badgeClass = 'badge-6'; badgeText = '設定6';
+        } else if (m.推定設定 === 5) {
+            settingClass = 'setting-5'; badgeClass = 'badge-5'; badgeText = '設定5';
+        } else if (m.推定設定 === 4) {
+            settingClass = ''; badgeClass = ''; badgeText = '設定4';
+        } else if (m.推定設定 >= 1) {
+            settingClass = ''; badgeClass = ''; badgeText = `設定${m.推定設定}`;
+        } else {
+            settingClass = ''; badgeClass = ''; badgeText = '-';
+        }
         const confClass = m.信頼度スコア >= 80 ? 'confidence-high' : m.信頼度スコア >= 50 ? 'confidence-mid' : 'confidence-low';
-        const evClass = m.期待値円 >= 0 ? 'td-positive' : 'td-negative';
+        const evClass = (m.期待値円 || 0) >= 0 ? 'td-positive' : 'td-negative';
 
         return `
         <tr class="${settingClass}">
-            <td><span class="badge ${badgeClass}">設定${m.推定設定}</span></td>
-            <td><span class="confidence ${confClass}">${m.信頼度ラベル}</span></td>
+            <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+            <td><span class="confidence ${confClass}">${m.信頼度ラベル || '-'}</span></td>
             <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
             <td>${m.台番}</td>
             <td class="td-num"><strong>${m.実質確率 || '-'}</strong></td>
-            <td class="td-num">${m.BB回数}/${m.RB回数}/${m.ART回数 || 0}</td>
-            <td class="td-num">${m.G数.toLocaleString()}</td>
+            <td class="td-num">${m.BB回数 || 0}/${m.RB回数 || 0}/${m.ART回数 || 0}</td>
+            <td class="td-num">${m.G数 ? m.G数.toLocaleString() : '0'}</td>
             <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
             <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
             <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>

@@ -173,8 +173,8 @@ function analyzeRealtimeData(machines) {
     const highSettingMachines = [];
 
     for (const m of machines) {
-        // 設定推測に必要な最低ゲーム数に満たない場合はスキップ（例：1000G未満）
-        if (m.G数 < 1000) continue;
+        // ゲーム数が0の台はスキップ
+        if (m.G数 < 1) continue;
 
         const specs = db[m.機種名] || getDefaultSpecs();
         const thresholds = getProbThresholds(m.機種名);
@@ -182,7 +182,16 @@ function analyzeRealtimeData(machines) {
         // 取得したBB/RB/ARTの合計を「総当たり回数」として扱う
         const totalHits = m.BB回数 + m.RB回数 + m.ART回数;
         
-        if (totalHits === 0) continue;
+        if (totalHits === 0) {
+            // まだ当たりが出ていない台も一応含める
+            m.実質確率 = '-';
+            m.推定設定 = 0;
+            m.信頼度スコア = 0;
+            m.信頼度ラベル = '-';
+            m.残りG数 = 0; m.期待差枚 = 0; m.期待値円 = 0;
+            highSettingMachines.push(m);
+            continue;
+        }
 
         // 実質の合算確率（1/〇〇）
         const actualProb = m.G数 / totalHits;
@@ -197,13 +206,8 @@ function analyzeRealtimeData(machines) {
         } else if (actualProb <= thresholds.s4) {
             estimatedSetting = 4;
         } else {
-            // 設定4の基準にも満たない場合は「設定なし」とみなす
-            estimatedSetting = 3; 
-        }
-
-        // ユーザー指示「設定5、6のものだけを出す。設定4以下は表示しなくてよい」
-        if (estimatedSetting < 5) {
-            continue; 
+            // 設定4の基準にも満たない
+            estimatedSetting = m.G数 >= 1000 ? 2 : 0; // G数少ない場合は判定不能
         }
 
         m.推定設定 = estimatedSetting;
@@ -249,8 +253,8 @@ function analyzeRealtimeData(machines) {
 if (require.main === module) {
     (async () => {
         const results = await scrapeDDelta();
-        console.log(`\n=== リアルタイム抽出結果 (設定5以上) ===`);
-        console.log(JSON.stringify(results, null, 2));
+        console.log(`\n=== リアルタイム抽出結果 (全台: ${results.length}台) ===`);
+        console.log(JSON.stringify(results.slice(0, 10), null, 2));
     })();
 }
 

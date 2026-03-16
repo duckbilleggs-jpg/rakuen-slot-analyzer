@@ -322,6 +322,8 @@ main {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
 }
 
 table {

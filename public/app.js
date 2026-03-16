@@ -40,11 +40,19 @@ function switchTab(tabId) {
   document.getElementById('dataTablePast').style.display = 'none';
   document.getElementById('dataTableRealtime').style.display = 'none';
   document.getElementById('dataTableForecast').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
   
   // フィルタバーやサマリーカードの表示調整
   document.getElementById('filterBarPast').style.display = (tabId === 'past') ? 'flex' : 'none';
   document.getElementById('filterBarRealtime').style.display = (tabId === 'realtime') ? 'flex' : 'none';
+  // サマリーバーはリアルタイムタブのみ表示
   document.getElementById('summaryBar').style.display = (tabId === 'realtime') ? 'grid' : 'none';
+
+  // タブボタンのスタイルも更新
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.style.background = '#1e293b';
+  });
+  document.getElementById(`tab-${tabId}`).style.background = '#3b82f6';
 
   // データ取得＆描画
   if (tabId === 'past') {
@@ -63,29 +71,26 @@ async function fetchPastData() {
   setLoading(true);
   try {
     const res = await fetch('/api/high-setting');
+    if (activeTab !== 'past') return; // タブが変わっていたら中断
     const data = await res.json();
     currentData.past = data.machines || [];
 
-    // サマリー更新
-    document.getElementById('totalMachines').textContent = data.totalMachines || 0;
-    document.getElementById('highSettingCount').textContent = currentData.past.length;
+    // ヘッダーの日付表示を更新（サマリーバーは非表示のまま）
     document.getElementById('dateDisplay').textContent = data.date || '-';
-
-    if (data.lastScrape) {
-      const t = new Date(data.lastScrape);
-      document.getElementById('lastUpdate').textContent = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
-    } else {
-      document.getElementById('lastUpdate').textContent = '-';
-    }
 
     if (data.scrapeStatus === 'running') {
       updateStatus('running');
-      setTimeout(fetchPastData, 15000); // 取得中は再試行
+      // 取得中でもデータがあれば表示する
+      if (currentData.past.length > 0) {
+        setLoading(false);
+        updateMachineFilter();
+        renderPastTable();
+      }
+      setTimeout(() => { if (activeTab === 'past') fetchPastData(); }, 15000);
       return;
     }
 
     setLoading(false);
-    updateCountdown();
     updateMachineFilter();
     renderPastTable();
     updateStatus('idle');
@@ -94,7 +99,7 @@ async function fetchPastData() {
     console.error('過去データ取得エラー:', e);
     setLoading(false);
     updateStatus('error');
-    setTimeout(fetchPastData, 30000);
+    setTimeout(() => { if (activeTab === 'past') fetchPastData(); }, 30000);
   }
 }
 
@@ -105,6 +110,7 @@ async function fetchRealtimeData() {
   setLoading(true);
   try {
     const res = await fetch('/api/realtime');
+    if (activeTab !== 'realtime') return; // タブが変わっていたら中断
     const data = await res.json();
     currentData.realtime = data.machines || [];
 
@@ -121,7 +127,7 @@ async function fetchRealtimeData() {
         setLoading(false);
         renderRealtimeTable();
       }
-      setTimeout(fetchRealtimeData, 5000);
+      setTimeout(() => { if (activeTab === 'realtime') fetchRealtimeData(); }, 5000);
       return;
     }
 
@@ -147,7 +153,7 @@ async function fetchRealtimeData() {
     });
     if (names.includes(currentVal)) select.value = currentVal;
 
-    // サマリーカード更新（リアルタイム用）
+    // サマリーカード更新（リアルタイムタブの場合のみ）
     document.getElementById('totalMachines').textContent = currentData.realtime.length;
     const highCount = currentData.realtime.filter(m => m.推定設定 >= 5).length;
     document.getElementById('highSettingCount').textContent = highCount;
@@ -163,7 +169,7 @@ async function fetchRealtimeData() {
     renderRealtimeTable();
   } catch (e) {
     console.error('リアルタイム取得エラー:', e);
-    setLoading(false);
+    if (activeTab === 'realtime') setLoading(false);
   }
 }
 
@@ -175,13 +181,14 @@ async function fetchForecastData() {
   document.getElementById('dateDisplay').textContent = '朝一推奨 (高信頼度ランキング)';
   try {
     const res = await fetch('/api/forecast');
+    if (activeTab !== 'forecast') return; // タブが変わっていたら中断
     const data = await res.json();
     currentData.forecast = data.machines || [];
     setLoading(false);
     renderForecastTable();
   } catch (e) {
     console.error('予測取得エラー:', e);
-    setLoading(false);
+    if (activeTab === 'forecast') setLoading(false);
   }
 }
 

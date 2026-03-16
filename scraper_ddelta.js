@@ -31,8 +31,7 @@ async function scrapeDDelta(onProgress) {
     
     // 1. トップページ（機種一覧ポータル）へアクセス
     console.log(`[DDelta Scraper] ポータルページへアクセス`);
-    await page.goto(PORTAL_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await new Promise(r => setTimeout(r, 3000)); // 動的コンテンツの読み込み待ち
+    await page.goto(PORTAL_URL, { waitUntil: 'networkidle0', timeout: 60000 });
     
     // Cookie同意
     try {
@@ -43,11 +42,14 @@ async function scrapeDDelta(onProgress) {
         }
     } catch (e) {}
 
-    // #model_link要素の出現を待機
+    // 機種リンク（#model_link内のa）が動的に生成されるのを待つ
     try {
-        await page.waitForSelector('#model_link', { timeout: 10000 });
+        await page.waitForSelector('#model_link ul a', { timeout: 20000 });
+        console.log('[DDelta Scraper] ✅ 機種リンクの読み込みを確認');
     } catch (e) {
-        console.log('[DDelta Scraper] ⚠️ #model_linkが見つかりませんでした');
+        console.log('[DDelta Scraper] ⚠️ #model_link ul a が20秒待っても見つかりません。フォールバックを試みます...');
+        // さらに5秒待ってリトライ
+        await new Promise(r => setTimeout(r, 5000));
     }
 
     // 2. ポータル画面から全機種のリンクを取得

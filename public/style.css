@@ -321,7 +321,7 @@ main {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 table {
@@ -333,6 +333,11 @@ thead {
   background: var(--bg-secondary);
   position: sticky;
   top: 0;
+  z-index: 10;
+}
+
+thead th {
+  background: var(--bg-secondary);
 }
 
 th {
@@ -477,6 +482,8 @@ footer a:hover { text-decoration: underline; }
     margin: 0 8px;
     border-radius: var(--radius-sm);
     overflow-x: auto;
+    max-height: calc(100vh - 160px);
+    overflow-y: auto;
   }
   th, td { padding: 10px 8px; font-size: 12px; }
   .machine-name { max-width: 120px; }

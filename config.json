@@ -1,11 +1,11 @@
 {
   "schedule": {
     "enabled": true,
-    "startHour": 18,
+    "startHour": 8,
     "startMinute": 0,
-    "endHour": 23,
-    "endMinute": 30,
-    "intervalMinutes": 30
+    "endHour": 10,
+    "endMinute": 0,
+    "intervalMinutes": 120
   },
   "realtimeSchedule": {
     "enabled": true,

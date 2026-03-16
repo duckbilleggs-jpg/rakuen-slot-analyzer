@@ -44,7 +44,7 @@ function switchTab(tabId) {
   // フィルタバーやサマリーカードの表示調整
   document.getElementById('filterBarPast').style.display = (tabId === 'past') ? 'flex' : 'none';
   document.getElementById('filterBarRealtime').style.display = (tabId === 'realtime') ? 'flex' : 'none';
-  document.getElementById('summaryBar').style.display = (tabId === 'past') ? 'grid' : 'none';
+  document.getElementById('summaryBar').style.display = (tabId === 'realtime') ? 'grid' : 'none';
 
   // データ取得＆描画
   if (tabId === 'past') {
@@ -130,6 +130,18 @@ async function fetchRealtimeData() {
     });
     if (names.includes(currentVal)) select.value = currentVal;
 
+    // サマリーカード更新（リアルタイム用）
+    document.getElementById('totalMachines').textContent = currentData.realtime.length;
+    const highCount = currentData.realtime.filter(m => m.推定設定 >= 5).length;
+    document.getElementById('highSettingCount').textContent = highCount;
+    if (data.timestamp) {
+      const t = new Date(data.timestamp);
+      document.getElementById('lastUpdate').textContent = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
+    } else {
+      document.getElementById('lastUpdate').textContent = '-';
+    }
+    updateCountdown();
+
     setLoading(false);
     renderRealtimeTable();
   } catch (e) {
@@ -164,7 +176,7 @@ function setLoading(isLoading) {
 }
 
 function updateCountdown() {
-  if (activeTab !== 'past') return;
+  if (activeTab !== 'realtime') return;
   const now = new Date();
   const closing = new Date(now);
   closing.setHours(22, 40, 0, 0);

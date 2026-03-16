@@ -137,7 +137,7 @@ app.get('/api/realtime', async (req, res) => {
             machines: cachedRealtimeData,
             timestamp: lastRealtimeFetch || new Date().toISOString(),
             status: realtimeFetchStatus,
-            message: 'リアルタイムデータ（設定5, 6予測抜粋）'
+            message: 'リアルタイムデータ（全台）'
         });
     } catch (e) {
         console.error('[API] /api/realtime エラー:', e);
@@ -296,13 +296,10 @@ async function runRealtimeScrape() {
 
     try {
         const data = await scrapeDDelta();
-        if (data && data.length > 0) {
-            // エラー等で空配列が返った場合はキャッシュを上書きしない
-            cachedRealtimeData = data;
-        }
+        cachedRealtimeData = data || [];
         lastRealtimeFetch = new Date().toISOString();
         realtimeFetchStatus = 'idle';
-        console.log(`[Server] リアルタイムデータ取得完了: ${new Date().toLocaleString('ja-JP')}`);
+        console.log(`[Server] リアルタイムデータ取得完了 (${cachedRealtimeData.length}台): ${new Date().toLocaleString('ja-JP')}`);
     } catch (e) {
         realtimeFetchStatus = 'error';
         console.error(`[Server] リアルタイムデータ取得エラー: ${e.message}`);
@@ -449,6 +446,13 @@ function getLocalIP() {
     } else {
       setupCronJob();
       setupRealtimeCronJob();
+      // 起動時にリアルタイムデータを即座に取得開始
+      const now = new Date();
+      const hour = now.getHours();
+      if (hour >= 18 && hour <= 23) {
+        console.log('[Server] 営業時間内のため、起動時リアルタイム取得を実行します...');
+        runRealtimeScrape();
+      }
     }
   });
 })();

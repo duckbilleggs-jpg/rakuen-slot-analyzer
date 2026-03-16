@@ -18,30 +18,43 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 function fetchHTML(urlPath) {
     const fullUrl = urlPath.startsWith('http') ? urlPath : `${BASE_URL}/${urlPath}`;
     return new Promise((resolve, reject) => {
-        const req = https.get(fullUrl, {
-            headers: { 'User-Agent': USER_AGENT }
-        }, (res) => {
-            const chunks = [];
-            res.on('data', chunk => chunks.push(chunk));
-            res.on('end', () => {
-                const buf = Buffer.concat(chunks);
-                // Shift_JISデコード: iconv-liteがあれば使用、なければ自前デコード
-                let html;
-                try {
-                    const iconv = require('iconv-lite');
-                    html = iconv.decode(buf, 'Shift_JIS');
-                } catch (e) {
-                    // iconv-liteがない場合はlatin1→手動置換(フォールバック)
-                    html = buf.toString('latin1');
+        const doRequest = (url, redirectCount = 0) => {
+            if (redirectCount > 5) return reject(new Error('リダイレクト回数超過'));
+            const req = https.get(url, {
+                headers: { 'User-Agent': USER_AGENT }
+            }, (res) => {
+                // リダイレクト追跡
+                if ([301, 302, 303, 307].includes(res.statusCode) && res.headers.location) {
+                    const newUrl = res.headers.location.startsWith('http') 
+                        ? res.headers.location 
+                        : `${BASE_URL}/${res.headers.location}`;
+                    console.log(`[DDelta] リダイレクト: ${res.statusCode} → ${newUrl}`);
+                    return doRequest(newUrl, redirectCount + 1);
                 }
-                resolve(html);
+                const chunks = [];
+                res.on('data', chunk => chunks.push(chunk));
+                res.on('end', () => {
+                    const buf = Buffer.concat(chunks);
+                    console.log(`[DDelta] HTTP ${res.statusCode} | ${buf.length} bytes | ${url.substring(0, 80)}`);
+                    let html;
+                    try {
+                        const iconv = require('iconv-lite');
+                        html = iconv.decode(buf, 'Shift_JIS');
+                    } catch (e) {
+                        html = buf.toString('latin1');
+                        console.log('[DDelta] iconv-lite使用不可、latin1フォールバック');
+                    }
+                    resolve(html);
+                });
+                res.on('error', reject);
             });
-            res.on('error', reject);
-        });
-        req.on('error', reject);
-        req.setTimeout(30000, () => { req.destroy(); reject(new Error('タイムアウト')); });
+            req.on('error', reject);
+            req.setTimeout(30000, () => { req.destroy(); reject(new Error('タイムアウト')); });
+        };
+        doRequest(fullUrl);
     });
 }
+
 
 /** sleep */
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
@@ -57,6 +70,10 @@ async function fetchModelList() {
     while (true) {
         console.log(`[DDelta] ポータル ページ${page} を取得中...`);
         const html = await fetchHTML(`D0301.do?pmc=22021030&clc=03&urt=2173&pan=${page}`);
+        
+        // デバッグ: HTML内容の確認
+        const d2301Count = (html.match(/D2301/g) || []).length;
+        console.log(`[DDelta] HTML長: ${html.length}文字, D2301出現: ${d2301Count}回, 先頭: ${html.substring(0, 100).replace(/\n/g, ' ')}`);
         
         // エラーページチェック
         if (html.includes('エラーページ') || html.includes('表示できません')) {

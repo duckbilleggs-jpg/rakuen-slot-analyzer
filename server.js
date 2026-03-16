@@ -185,13 +185,11 @@ app.get('/api/realtime', async (req, res) => {
         res.json({
             machines: cachedRealtimeData,
             timestamp: lastRealtimeFetch || null,
-            status: realtimeFetchStatus,
-            progress: realtimeProgress,
+            status: 'idle',
+            progress: { current: 0, total: 0, modelName: '' },
             message: cachedRealtimeData.length > 0 
                 ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
-                : realtimeFetchStatus === 'running'
-                    ? `取得中... ${realtimeProgress.current}/${realtimeProgress.total} 機種 (${realtimeProgress.modelName || '準備中'})` 
-                    : 'データ未取得'
+                : 'データ未取得（ローカルPCからCLIで取得してください）'
         });
     } catch (e) {
         console.error('[API] /api/realtime エラー:', e);
@@ -199,13 +197,9 @@ app.get('/api/realtime', async (req, res) => {
     }
 });
 
-/** リアルタイム手動取得トリガー */
+/** リアルタイム手動取得トリガー（ローカルCLIで実行するため、サーバーでは実行しない） */
 app.post('/api/realtime', async (req, res) => {
-    if (realtimeFetchStatus === 'running') {
-        return res.json({ status: 'already_running', message: 'リアルタイム取得実行中です' });
-    }
-    runRealtimeScrape();
-    res.json({ status: 'started', message: 'リアルタイム取得を開始しました' });
+    res.json({ status: 'info', message: 'リアルタイムデータはローカルPCのCLIスクリプトから取得します（d-deltanetがクラウドIPを制限しているため）' });
 });
 
 /** 激熱予測（過去履歴からの高信頼度・高設定台ランキング） */

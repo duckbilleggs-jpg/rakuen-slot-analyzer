@@ -107,31 +107,12 @@ async function fetchPastData() {
 // データ取得＆表示 (リアルタイム)
 // ============================
 async function fetchRealtimeData() {
-  setLoading(true);
+  // 既にデータがあれば画面を消さない（初回のみローディング表示）
+  if (currentData.realtime.length === 0) setLoading(true);
   try {
     const res = await fetch('/api/realtime');
     if (activeTab !== 'realtime') return;
     const data = await res.json();
-
-    // runningステータスならポーリング
-    if (data.status === 'running') {
-      const prog = data.progress || {};
-      const progText = prog.total > 0 
-        ? `取得中... ${prog.current}/${prog.total} 機種 (${prog.modelName || ''})` 
-        : '取得準備中...';
-      document.getElementById('dateDisplay').textContent = `本日 (リアルタイム) | ${progText}`;
-      updateStatus('running');
-      // サマリーカードに進捗表示
-      document.getElementById('totalMachines').textContent = prog.total > 0 ? `${prog.current}/${prog.total}` : '...';
-      document.getElementById('highSettingCount').textContent = '-';
-      document.getElementById('lastUpdate').textContent = '取得中';
-      setLoading(false);
-      // 3秒後に再確認
-      setTimeout(() => {
-        if (activeTab === 'realtime') fetchRealtimeData();
-      }, 3000);
-      return;
-    }
 
     currentData.realtime = data.machines || [];
 
@@ -445,14 +426,11 @@ async function manualScrape() {
 
   try {
     if (activeTab === 'realtime') {
-      // リアルタイムタブ: d-deltanetから取得
-      await fetch('/api/realtime', { method: 'POST' });
-      // 3秒後にデータリロード（ポーリングがfetchRealtimeDataで継続）
-      setTimeout(async () => {
-        await fetchRealtimeData();
-        btn.disabled = false;
-        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg> データ取得';
-      }, 3000);
+      // リアルタイムタブ: MongoDBキャッシュを再読み込み
+      await fetchRealtimeData();
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg> データ取得';
+      updateStatus('idle');
     } else {
       // 過去データタブ: みんレポから取得
       await fetch('/api/scrape', { method: 'POST' });

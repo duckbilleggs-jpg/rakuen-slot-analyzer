@@ -36,6 +36,7 @@ let lastScrapeError = null;
 let cachedRealtimeData = [];
 let lastRealtimeFetch = null;
 let realtimeFetchStatus = 'idle'; // 'idle' | 'running' | 'error'
+let realtimeProgress = { current: 0, total: 0, modelName: '' };
 
 // ============================
 // API エンドポイント
@@ -137,6 +138,7 @@ app.get('/api/realtime', async (req, res) => {
             machines: cachedRealtimeData,
             timestamp: lastRealtimeFetch || new Date().toISOString(),
             status: realtimeFetchStatus,
+            progress: realtimeProgress,
             message: 'リアルタイムデータ（全台）'
         });
     } catch (e) {
@@ -295,7 +297,10 @@ async function runRealtimeScrape() {
     console.log(`[Server] リアルタイムデータ取得開始: ${new Date().toLocaleString('ja-JP')}`);
 
     try {
-        const data = await scrapeDDelta();
+        const data = await scrapeDDelta((current, total, modelName) => {
+            realtimeProgress = { current, total, modelName };
+        });
+        realtimeProgress = { current: 0, total: 0, modelName: '' };
         if (data && data.length > 0) {
             cachedRealtimeData = data;
         } else {

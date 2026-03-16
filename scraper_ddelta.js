@@ -15,7 +15,7 @@ const PORTAL_URL = 'https://www.d-deltanet.com/pc/D0301.do?pmc=22021030&clc=03&u
 /**
  * puppeteerを使ってd-deltanetから対象機種のリアルタイムデータを取得
  */
-async function scrapeDDelta() {
+async function scrapeDDelta(onProgress) {
   console.log('[DDelta Scraper] ブラウザを起動し、リアルタイムデータの取得を開始します...');
   const browser = await puppeteer.launch({ 
       headless: "new",
@@ -80,6 +80,7 @@ async function scrapeDDelta() {
     for (let i = 0; i < modelLinks.length; i++) {
         const model = modelLinks[i];
         console.log(`[DDelta Scraper] (${i+1}/${modelLinks.length}) 機種「${model.name}」を探索中...`);
+        if (onProgress) onProgress(i + 1, modelLinks.length, model.name);
         
         try {
             // その機種のトップページに直接飛ぶ

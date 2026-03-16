@@ -217,15 +217,26 @@ function setLoading(isLoading) {
 function updateCountdown() {
   if (activeTab !== 'realtime') return;
   const now = new Date();
+  const h = now.getHours();
+  const openHour = 9; // 開店時間
   const closing = new Date(now);
   closing.setHours(22, 40, 0, 0);
-  const diff = closing - now;
-  if (diff <= 0) {
-    document.getElementById('timeToClose').textContent = '閉店';
-  } else {
+
+  if (h < openHour) {
+    // 開店前
+    const open = new Date(now);
+    open.setHours(openHour, 0, 0, 0);
+    const diff = open - now;
     const hrs = Math.floor(diff / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);
-    document.getElementById('timeToClose').textContent = `${hrs}h ${mins}m`;
+    document.getElementById('timeToClose').textContent = `開店まで ${hrs}h ${mins}m`;
+  } else if (now >= closing) {
+    document.getElementById('timeToClose').textContent = '閉店';
+  } else {
+    const diff = closing - now;
+    const hrs = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    document.getElementById('timeToClose').textContent = `閉店まで ${hrs}h ${mins}m`;
   }
 }
 

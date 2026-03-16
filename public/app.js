@@ -294,6 +294,11 @@ function renderRealtimeTable() {
         case 'games': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
     }
 
+    // 全機種表示時はTop100に制限（機種選択時は全台表示）
+    if (machineFilter === 'all' && filtered.length > 100) {
+        filtered = filtered.slice(0, 100);
+    }
+
     if (filtered.length === 0) {
         table.style.display = 'none';
         empty.style.display = 'block';

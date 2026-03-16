@@ -296,21 +296,27 @@ async function runRealtimeScrape() {
 
     try {
         const data = await scrapeDDelta();
-        cachedRealtimeData = data || [];
+        if (data && data.length > 0) {
+            cachedRealtimeData = data;
+        } else {
+            console.log('[Server] スクレイパーから0台返却。キャッシュは上書きしません。');
+        }
         lastRealtimeFetch = new Date().toISOString();
         realtimeFetchStatus = 'idle';
         console.log(`[Server] リアルタイムデータ取得完了 (${cachedRealtimeData.length}台): ${new Date().toLocaleString('ja-JP')}`);
 
-        // MongoDBにキャッシュ保存（再起動時に復元できるように）
-        try {
-            await RealtimeCache.findOneAndUpdate(
-                { key: 'latest' },
-                { machines: cachedRealtimeData, timestamp: lastRealtimeFetch },
-                { upsert: true }
-            );
-            console.log('[Server] リアルタイムデータMongoDB保存完了');
-        } catch (dbErr) {
-            console.error('[Server] リアルタイムデータMongoDB保存失敗:', dbErr.message);
+        // MongoDBにキャッシュ保存（0台でない場合のみ）
+        if (cachedRealtimeData.length > 0) {
+          try {
+              await RealtimeCache.findOneAndUpdate(
+                  { key: 'latest' },
+                  { machines: cachedRealtimeData, timestamp: lastRealtimeFetch },
+                  { upsert: true }
+              );
+              console.log('[Server] リアルタイムデータMongoDB保存完了');
+          } catch (dbErr) {
+              console.error('[Server] リアルタイムデータMongoDB保存失敗:', dbErr.message);
+          }
         }
     } catch (e) {
         realtimeFetchStatus = 'error';

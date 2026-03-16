@@ -31,7 +31,8 @@ async function scrapeDDelta() {
     
     // 1. トップページ（機種一覧ポータル）へアクセス
     console.log(`[DDelta Scraper] ポータルページへアクセス`);
-    await page.goto(PORTAL_URL, { waitUntil: 'networkidle2' });
+    await page.goto(PORTAL_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await new Promise(r => setTimeout(r, 3000)); // 動的コンテンツの読み込み待ち
     
     // Cookie同意
     try {
@@ -42,16 +43,31 @@ async function scrapeDDelta() {
         }
     } catch (e) {}
 
+    // #model_link要素の出現を待機
+    try {
+        await page.waitForSelector('#model_link', { timeout: 10000 });
+    } catch (e) {
+        console.log('[DDelta Scraper] ⚠️ #model_linkが見つかりませんでした');
+    }
+
     // 2. ポータル画面から全機種のリンクを取得
     const modelLinks = await page.evaluate(() => {
         const links = [];
-        const aTags = document.querySelectorAll('#model_link ul a');
+        // まず #model_link ul a を試す
+        let aTags = document.querySelectorAll('#model_link ul a');
+        // 見つからない場合は #model_link a
+        if (aTags.length === 0) {
+            aTags = document.querySelectorAll('#model_link a');
+        }
+        // それでもない場合はページ全体からD2301を含むリンクを探す
+        if (aTags.length === 0) {
+            aTags = document.querySelectorAll('a[href*="D2301"]');
+        }
         aTags.forEach(a => {
             let text = a.innerText.replace(/\n/g, '').trim();
-            // [68] のような台数表記を削除
             text = text.replace(/\[\d+\]$/, '').trim(); 
             const href = a.getAttribute('href');
-            if (text && href) {
+            if (text && text.length > 1 && href && !text.includes('すべて') && !text.includes('1000円')) {
                 links.push({ name: text, url: href });
             }
         });

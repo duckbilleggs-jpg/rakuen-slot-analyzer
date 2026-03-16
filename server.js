@@ -5,7 +5,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cron = require('node-cron');
-const { connectDB } = require('./database');
+const { connectDB, RealtimeCache } = require('./database');
 const { scrapeToday, scrapeRecent, loadDayData, todayKey, normalizeDateKey } = require('./scraper');
 const { analyzeHighSetting, analyzeAll } = require('./analyzer');
 const { updateDBForNewMachines } = require('./machine_lookup');
@@ -300,10 +300,22 @@ async function runRealtimeScrape() {
         lastRealtimeFetch = new Date().toISOString();
         realtimeFetchStatus = 'idle';
         console.log(`[Server] リアルタイムデータ取得完了 (${cachedRealtimeData.length}台): ${new Date().toLocaleString('ja-JP')}`);
+
+        // MongoDBにキャッシュ保存（再起動時に復元できるように）
+        try {
+            await RealtimeCache.findOneAndUpdate(
+                { key: 'latest' },
+                { machines: cachedRealtimeData, timestamp: lastRealtimeFetch },
+                { upsert: true }
+            );
+            console.log('[Server] リアルタイムデータMongoDB保存完了');
+        } catch (dbErr) {
+            console.error('[Server] リアルタイムデータMongoDB保存失敗:', dbErr.message);
+        }
     } catch (e) {
         realtimeFetchStatus = 'error';
         console.error(`[Server] リアルタイムデータ取得エラー: ${e.message}`);
-        setTimeout(() => { realtimeFetchStatus = 'idle'; }, 60000); // 1分後にリトライ可能に
+        setTimeout(() => { realtimeFetchStatus = 'idle'; }, 60000);
     }
 }
 
@@ -420,6 +432,18 @@ function getLocalIP() {
 (async () => {
   try {
     await connectDB();
+
+    // 起動時にMongoDBからリアルタイムキャッシュを復元
+    try {
+      const cached = await RealtimeCache.findOne({ key: 'latest' });
+      if (cached && cached.machines && cached.machines.length > 0) {
+        cachedRealtimeData = cached.machines;
+        lastRealtimeFetch = cached.timestamp ? cached.timestamp.toISOString() : new Date().toISOString();
+        console.log(`[Server] MongoDBからリアルタイムキャッシュ復元: ${cachedRealtimeData.length}台`);
+      }
+    } catch (cacheErr) {
+      console.log('[Server] リアルタイムキャッシュ復元失敗:', cacheErr.message);
+    }
   } catch (e) {
     console.error('[DB] 起動時のMongoDB接続失敗:', e.message);
   }

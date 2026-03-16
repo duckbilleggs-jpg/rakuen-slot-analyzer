@@ -47,7 +47,17 @@ machineSchema.index({ dateKey: 1, 台番: 1 }, { unique: true });
 
 const Machine = mongoose.models.Machine || mongoose.model('Machine', machineSchema);
 
+// リアルタイムデータのキャッシュ用スキーマ
+const realtimeCacheSchema = new mongoose.Schema({
+  key: { type: String, default: 'latest', unique: true },
+  machines: { type: mongoose.Schema.Types.Mixed, default: [] },
+  timestamp: { type: Date, default: Date.now }
+}, { timestamps: false, collection: 'realtime_cache' });
+
+const RealtimeCache = mongoose.models.RealtimeCache || mongoose.model('RealtimeCache', realtimeCacheSchema);
+
 module.exports = {
   connectDB,
-  Machine
+  Machine,
+  RealtimeCache
 };

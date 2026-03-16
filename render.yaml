@@ -4,23 +4,10 @@ services:
     env: node
     region: oregon
     plan: free
-    buildCommand: |
-      apt-get update && apt-get install -y \
-        chromium \
-        fonts-ipafont-gothic \
-        fonts-wqy-zenhei \
-        fonts-thai-tlwg \
-        fonts-khmeros \
-        fonts-freefont-ttf \
-        --no-install-recommends && \
-      npm install
+    buildCommand: npm install
     startCommand: node server.js
     envVars:
       - key: MONGODB_URI
         sync: false  # Render ダッシュボードで手動入力
       - key: NODE_ENV
         value: production
-      - key: PUPPETEER_EXECUTABLE_PATH
-        value: /usr/bin/chromium
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: "true"

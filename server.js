@@ -129,17 +129,28 @@ app.get('/api/realtime', async (req, res) => {
     try {
         console.log('[API] /api/realtime リクエスト受信');
         
-        // キャッシュが空、かつ取得中でない場合のみ初回バックグラウンドフェッチを発火
-        if (cachedRealtimeData.length === 0 && realtimeFetchStatus !== 'running' && !SCRAPING_DISABLED) {
-            runRealtimeScrape(); 
+        // キャッシュが空ならMongoDBから再読み込み
+        if (cachedRealtimeData.length === 0) {
+            try {
+                const cached = await RealtimeCache.findOne({ key: 'latest' });
+                if (cached && cached.machines && cached.machines.length > 0) {
+                    cachedRealtimeData = cached.machines;
+                    lastRealtimeFetch = cached.timestamp ? cached.timestamp.toISOString() : null;
+                    console.log(`[API] MongoDBからリアルタイムデータ復元: ${cachedRealtimeData.length}台`);
+                }
+            } catch (dbErr) {
+                console.log('[API] MongoDB読み込み失敗:', dbErr.message);
+            }
         }
 
         res.json({
             machines: cachedRealtimeData,
-            timestamp: lastRealtimeFetch || new Date().toISOString(),
+            timestamp: lastRealtimeFetch || null,
             status: realtimeFetchStatus,
             progress: realtimeProgress,
-            message: 'リアルタイムデータ（全台）'
+            message: cachedRealtimeData.length > 0 
+                ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
+                : 'GitHub Actionsでデータ取得中（初回は数分お待ちください）'
         });
     } catch (e) {
         console.error('[API] /api/realtime エラー:', e);
@@ -481,13 +492,7 @@ function getLocalIP() {
     } else {
       setupCronJob();
       setupRealtimeCronJob();
-      // 起動時にリアルタイムデータを即座に取得開始
-      const now = new Date();
-      const hour = now.getHours();
-      if (hour >= 18 && hour <= 23) {
-        console.log('[Server] 営業時間内のため、起動時リアルタイム取得を実行します...');
-        runRealtimeScrape();
-      }
+      // リアルタイムデータはGitHub ActionsがMongoDBに書き込むので、起動時のスクレープは不要
     }
   });
 })();

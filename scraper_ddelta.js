@@ -81,10 +81,16 @@ async function clickBackLink(page) {
  */
 async function scrapeDDelta(onProgress) {
     console.log('[DDelta] ブラウザを起動し、リアルタイムデータの取得を開始します...');
-    const browser = await puppeteer.launch({ 
+    const launchOpts = {
         headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--window-size=1280,1080']
-    });
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process', '--window-size=1280,1080']
+    };
+    // Render等: システムのChromiumを使う場合
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        console.log(`[DDelta] executablePath: ${launchOpts.executablePath}`);
+    }
+    const browser = await puppeteer.launch(launchOpts);
     
     const results = [];
     

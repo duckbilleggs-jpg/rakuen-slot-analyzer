@@ -1,0 +1,9 @@
+1. Fetching list page to get session cookies...
+[LIST] Status Code: 200 URL: https://www.d-deltanet.com/pc/D0301.do?pmc=22021030&clc=03&urt=2173&pan=1
+Saved cookies: JSESSIONID=B63D47E284765E919821DEDFBF3D70FE.64, PTL_OID=, PTL_UID=B63D47E284765E919821DEDFBF3D70FE.64%EF%BC%BF20260316154231
+
+2. Fetching machine page: https://www.d-deltanet.com/pc/D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120122&bn=1
+[TARGET] Status Code: 200 URL: https://www.d-deltanet.com/pc/D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120122&bn=1
+Page Title: エラーページ
+--- ERROR FOUND ---
+No specific error text found.

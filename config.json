@@ -7,6 +7,14 @@
     "endMinute": 30,
     "intervalMinutes": 30
   },
+  "realtimeSchedule": {
+    "enabled": true,
+    "startHour": 18,
+    "startMinute": 0,
+    "endHour": 23,
+    "endMinute": 30,
+    "intervalMinutes": 30
+  },
   "closingTime": {
     "hour": 22,
     "minute": 40

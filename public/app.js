@@ -2,75 +2,146 @@
  * app.js — ダッシュボード フロントエンド
  */
 
-let currentData = [];
+let currentData = {
+  past: [],
+  realtime: [],
+  forecast: []
+};
+let activeTab = 'past';
 let allMachineNames = [];
 
 // ============================
 // 初期化
 // ============================
 document.addEventListener('DOMContentLoaded', () => {
-  loadData();
+  switchTab('past'); // 初期表示タブ
   loadConfigUI();
   // 5分ごとに自動リフレッシュ
-  setInterval(loadData, 5 * 60 * 1000);
+  setInterval(() => {
+    if (activeTab === 'past') fetchPastData();
+    else if (activeTab === 'realtime') fetchRealtimeData();
+    else if (activeTab === 'forecast') fetchForecastData();
+  }, 5 * 60 * 1000);
   // 閉店カウントダウン更新
   setInterval(updateCountdown, 30000);
 });
 
 // ============================
-// データ取得＆表示
+// タブ切り替え
 // ============================
-async function loadData() {
+function switchTab(tabId) {
+  activeTab = tabId;
+  
+  // タブボタンのアクティブ状態更新
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById(`tab-${tabId}`).classList.add('active');
+
+  // テーブルコンテナ等の表示切り替え
+  document.getElementById('dataTablePast').style.display = 'none';
+  document.getElementById('dataTableRealtime').style.display = 'none';
+  document.getElementById('dataTableForecast').style.display = 'none';
+  
+  // フィルタバーやサマリーカードの表示調整
+  document.getElementById('filterBarPast').style.display = (tabId === 'past') ? 'flex' : 'none';
+  document.getElementById('summaryBar').style.display = (tabId === 'past') ? 'grid' : 'none';
+
+  // データ取得＆描画
+  if (tabId === 'past') {
+    fetchPastData();
+  } else if (tabId === 'realtime') {
+    fetchRealtimeData();
+  } else if (tabId === 'forecast') {
+    fetchForecastData();
+  }
+}
+
+// ============================
+// データ取得＆表示 (過去/みんレポ)
+// ============================
+async function fetchPastData() {
+  setLoading(true);
   try {
     const res = await fetch('/api/high-setting');
     const data = await res.json();
-
-    currentData = data.machines || [];
+    currentData.past = data.machines || [];
 
     // サマリー更新
     document.getElementById('totalMachines').textContent = data.totalMachines || 0;
-    document.getElementById('highSettingCount').textContent = currentData.length;
+    document.getElementById('highSettingCount').textContent = currentData.past.length;
     document.getElementById('dateDisplay').textContent = data.date || '-';
 
     if (data.lastScrape) {
       const t = new Date(data.lastScrape);
-      document.getElementById('lastUpdate').textContent =
-        `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
+      document.getElementById('lastUpdate').textContent = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
     } else {
       document.getElementById('lastUpdate').textContent = '-';
     }
 
-    // 取得中の場合はリトライ処理
     if (data.scrapeStatus === 'running') {
-      document.getElementById('loading').style.display = 'flex';
-      document.getElementById('loading').querySelector('p').textContent =
-        'データを取得中です...しばらくお待ちください';
       updateStatus('running');
-      setTimeout(loadData, 15000);
+      setTimeout(fetchPastData, 15000); // 取得中は再試行
       return;
     }
 
-    // データ有無にかかわらずローディングを非表示
-    document.getElementById('loading').style.display = 'none';
-
-    // テーブル描画
-    try { updateCountdown(); } catch(e) { console.warn('updateCountdown:', e); }
-    try { updateMachineFilter(); } catch(e) { console.warn('updateMachineFilter:', e); }
-    try { renderTable(); } catch(e) { console.warn('renderTable:', e); }
-
+    setLoading(false);
+    updateCountdown();
+    updateMachineFilter();
+    renderPastTable();
     updateStatus('idle');
 
   } catch (e) {
-    console.error('データ取得エラー:', e);
-    // エラー時もローディングを非表示にして状態を更新
-    document.getElementById('loading').style.display = 'none';
+    console.error('過去データ取得エラー:', e);
+    setLoading(false);
     updateStatus('error');
-    // エラー時も30秒後にリトライ
-    setTimeout(loadData, 30000);
+    setTimeout(fetchPastData, 30000);
+  }
+}
+
+// ============================
+// データ取得＆表示 (リアルタイム)
+// ============================
+async function fetchRealtimeData() {
+  setLoading(true);
+  document.getElementById('dateDisplay').textContent = '本日 (リアルタイム)';
+  try {
+    const res = await fetch('/api/realtime');
+    const data = await res.json();
+    currentData.realtime = data.machines || [];
+    setLoading(false);
+    renderRealtimeTable();
+  } catch (e) {
+    console.error('リアルタイム取得エラー:', e);
+    setLoading(false);
+  }
+}
+
+// ============================
+// データ取得＆表示 (朝一予測)
+// ============================
+async function fetchForecastData() {
+  setLoading(true);
+  document.getElementById('dateDisplay').textContent = '朝一推奨 (高信頼度ランキング)';
+  try {
+    const res = await fetch('/api/forecast');
+    const data = await res.json();
+    currentData.forecast = data.machines || [];
+    setLoading(false);
+    renderForecastTable();
+  } catch (e) {
+    console.error('予測取得エラー:', e);
+    setLoading(false);
+  }
+}
+
+function setLoading(isLoading) {
+  document.getElementById('loading').style.display = isLoading ? 'flex' : 'none';
+  if (isLoading) {
+    document.getElementById('emptyState').style.display = 'none';
   }
 }
 
 function updateCountdown() {
+  if (activeTab !== 'past') return;
   const now = new Date();
   const closing = new Date(now);
   closing.setHours(22, 40, 0, 0);
@@ -85,11 +156,10 @@ function updateCountdown() {
 }
 
 function updateMachineFilter() {
-  const names = [...new Set(currentData.map(m => m.機種名))].sort();
+  const names = [...new Set(currentData.past.map(m => m.機種名))].sort();
   const select = document.getElementById('machineFilter');
   const currentVal = select.value;
 
-  // 既存オプション保持
   select.innerHTML = '<option value="all">全機種</option>';
   names.forEach(name => {
     const opt = document.createElement('option');
@@ -97,80 +167,143 @@ function updateMachineFilter() {
     opt.textContent = name;
     select.appendChild(opt);
   });
-
   if (names.includes(currentVal)) select.value = currentVal;
 }
 
 // ============================
-// テーブル描画
+// テーブル描画部
 // ============================
-function renderTable() {
-  const sortKey = document.getElementById('sortSelect').value;
-  const filterMachine = document.getElementById('machineFilter').value;
 
-  let filtered = [...currentData];
+// 過去データ描画
+function renderPastTable() {
+    if (activeTab !== 'past') return;
+    const table = document.getElementById('dataTablePast');
+    const tbody = document.getElementById('tableBodyPast');
+    const empty = document.getElementById('emptyState');
+    
+    let filtered = [...currentData.past];
+    const sortKey = document.getElementById('sortSelect').value;
+    const filterMachine = document.getElementById('machineFilter').value;
 
-  // 機種フィルタ
-  if (filterMachine !== 'all') {
-    filtered = filtered.filter(m => m.機種名 === filterMachine);
-  }
+    if (filterMachine !== 'all') filtered = filtered.filter(m => m.機種名 === filterMachine);
 
-  // ソート
-  switch (sortKey) {
-    case 'ev':
-      filtered.sort((a, b) => b.期待値円 - a.期待値円);
-      break;
-    case 'setting':
-      filtered.sort((a, b) => b.推定設定 - a.推定設定 || b.期待値円 - a.期待値円);
-      break;
-    case 'rate':
-      filtered.sort((a, b) => b.出率 - a.出率);
-      break;
-    case 'confidence':
-      filtered.sort((a, b) => b.信頼度 - a.信頼度 || b.期待値円 - a.期待値円);
-      break;
-    case 'samai':
-      filtered.sort((a, b) => b.差枚 - a.差枚);
-      break;
-  }
+    switch (sortKey) {
+        case 'ev': filtered.sort((a, b) => b.期待値円 - a.期待値円); break;
+        case 'setting': filtered.sort((a, b) => b.推定設定 - a.推定設定 || b.期待値円 - a.期待値円); break;
+        case 'rate': filtered.sort((a, b) => b.出率 - a.出率); break;
+        case 'confidence': filtered.sort((a, b) => b.信頼度 - a.信頼度 || b.期待値円 - a.期待値円); break;
+        case 'samai': filtered.sort((a, b) => b.差枚 - a.差枚); break;
+    }
 
-  const table = document.getElementById('dataTable');
-  const empty = document.getElementById('emptyState');
-  const tbody = document.getElementById('tableBody');
+    if (filtered.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
 
-  if (filtered.length === 0) {
-    table.style.display = 'none';
-    empty.style.display = 'block';
-    return;
-  }
+    table.style.display = 'table';
+    empty.style.display = 'none';
 
-  table.style.display = 'table';
-  empty.style.display = 'none';
+    tbody.innerHTML = filtered.map(m => {
+        const settingClass = m.推定設定 === 6 ? 'setting-6' : 'setting-5';
+        const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
+        const confClass = m.信頼度 >= 80 ? 'confidence-high' : m.信頼度 >= 50 ? 'confidence-mid' : 'confidence-low';
+        const samaiClass = m.差枚 >= 0 ? 'td-positive' : 'td-negative';
+        const evClass = m.期待値円 >= 0 ? 'td-positive' : 'td-negative';
 
-  tbody.innerHTML = filtered.map(m => {
-    const settingClass = m.推定設定 === 6 ? 'setting-6' : 'setting-5';
-    const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
-    const confClass = m.信頼度 >= 80 ? 'confidence-high' : m.信頼度 >= 50 ? 'confidence-mid' : 'confidence-low';
-    const samaiClass = m.差枚 >= 0 ? 'td-positive' : 'td-negative';
-    const evClass = m.期待値円 >= 0 ? 'td-positive' : 'td-negative';
+        return `
+        <tr class="${settingClass}">
+            <td><span class="badge ${badgeClass}">設定${m.推定設定}</span></td>
+            <td><span class="confidence ${confClass}">${m.信頼度ラベル}</span></td>
+            <td class="machine-name" title="${m.機種名}">
+            ${m.reportId ? `<a href="https://min-repo.com/${m.reportId}/?kishu=${encodeURIComponent(m.機種名)}" target="_blank" rel="noopener" style="color:var(--text-primary); text-decoration:underline;">${m.機種名}</a>` : m.機種名}
+            </td>
+            <td>${m.台番}</td>
+            <td class="td-num">${m.出率.toFixed(1)}%</td>
+            <td class="td-num ${samaiClass}">${m.差枚.toLocaleString()}</td>
+            <td class="td-num">${m.G数.toLocaleString()}</td>
+            <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
+            <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
+            <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
+        </tr>
+        `;
+    }).join('');
+}
 
-    return `
-      <tr class="${settingClass}">
-        <td><span class="badge ${badgeClass}">設定${m.推定設定}</span></td>
-        <td><span class="confidence ${confClass}">${m.信頼度ラベル}</span></td>
-        <td class="machine-name" title="${m.機種名}">
-          ${m.reportId ? `<a href="https://min-repo.com/${m.reportId}/?kishu=${encodeURIComponent(m.機種名)}" target="_blank" rel="noopener" style="color:var(--text-primary); text-decoration:underline;">${m.機種名}</a>` : m.機種名}
-        </td>
-        <td>${m.台番}</td>
-        <td class="td-num">${m.出率.toFixed(1)}%</td>
-        <td class="td-num ${samaiClass}">${m.差枚.toLocaleString()}</td>
-        <td class="td-num">${m.G数.toLocaleString()}</td>
-        <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
-        <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
-        <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
-      </tr>
-    `;
-  }).join('');
+// リアルタイム描画
+function renderRealtimeTable() {
+    if (activeTab !== 'realtime') return;
+    const table = document.getElementById('dataTableRealtime');
+    const tbody = document.getElementById('tableBodyRealtime');
+    const empty = document.getElementById('emptyState');
+    
+    if (currentData.realtime.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+
+    table.style.display = 'table';
+    empty.style.display = 'none';
+
+    tbody.innerHTML = currentData.realtime.map(m => {
+        const settingClass = m.推定設定 === 6 ? 'setting-6' : 'setting-5';
+        const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
+        const confClass = m.信頼度スコア >= 80 ? 'confidence-high' : m.信頼度スコア >= 50 ? 'confidence-mid' : 'confidence-low';
+        const evClass = m.期待値円 >= 0 ? 'td-positive' : 'td-negative';
+
+        return `
+        <tr class="${settingClass}">
+            <td><span class="badge ${badgeClass}">設定${m.推定設定}</span></td>
+            <td><span class="confidence ${confClass}">${m.信頼度ラベル}</span></td>
+            <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
+            <td>${m.台番}</td>
+            <td class="td-num"><strong>${m.実質確率 || '-'}</strong></td>
+            <td class="td-num">${m.BB回数}/${m.RB回数}/${m.ART回数 || 0}</td>
+            <td class="td-num">${m.G数.toLocaleString()}</td>
+            <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
+            <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
+            <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
+        </tr>
+        `;
+    }).join('');
+}
+
+// 朝一予測データ描画
+function renderForecastTable() {
+    if (activeTab !== 'forecast') return;
+    const table = document.getElementById('dataTableForecast');
+    const tbody = document.getElementById('tableBodyForecast');
+    const empty = document.getElementById('emptyState');
+    
+    if (currentData.forecast.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+    }
+
+    table.style.display = 'table';
+    empty.style.display = 'none';
+
+    tbody.innerHTML = currentData.forecast.map((m, index) => {
+        const rankClass = index < 3 ? 'setting-6' : (index < 10 ? 'setting-5' : '');
+        let recClass = '';
+        if (m.おすすめ度.includes('★★★')) recClass = 'confidence-high';
+        else if (m.おすすめ度.includes('★★☆')) recClass = 'confidence-mid';
+        else recClass = 'confidence-low';
+
+        return `
+        <tr class="${rankClass}">
+            <td><span class="confidence ${recClass}">${m.おすすめ度}</span></td>
+            <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
+            <td><strong>${m.台番}</strong></td>
+            <td class="td-num" style="color:#ef4444; font-weight:bold; font-size:1.1em;">${m.高設定回数} 回</td>
+            <td class="td-num">${m.平均出率}%</td>
+            <td class="td-num ${m.平均差枚 >= 0 ? 'td-positive' : 'td-negative'}">${m.平均差枚.toLocaleString()}</td>
+            <td class="td-num" style="color:var(--text-secondary); font-size:0.9em;">${m.直近確認日}</td>
+        </tr>
+        `;
+    }).join('');
 }
 
 // ============================
@@ -239,6 +372,13 @@ async function loadConfigUI() {
     document.getElementById('cfgStartM').value = cfg.schedule.startMinute;
     document.getElementById('cfgEndH').value = cfg.schedule.endHour;
     document.getElementById('cfgEndM').value = cfg.schedule.endMinute;
+    
+    // リアルタイム取得用の開始時間 (設定がない場合はデフォルト値を使用)
+    if (cfg.realtimeSchedule) {
+        document.getElementById('cfgRtStartH').value = cfg.realtimeSchedule.startHour;
+        document.getElementById('cfgRtStartM').value = cfg.realtimeSchedule.startMinute;
+    }
+
     document.getElementById('cfgInterval').value = cfg.schedule.intervalMinutes;
     document.getElementById('cfgCloseH').value = cfg.closingTime.hour;
     document.getElementById('cfgCloseM').value = cfg.closingTime.minute;
@@ -266,6 +406,14 @@ async function saveConfig() {
       endHour: parseInt(document.getElementById('cfgEndH').value),
       endMinute: parseInt(document.getElementById('cfgEndM').value),
       intervalMinutes: parseInt(document.getElementById('cfgInterval').value)
+    },
+    realtimeSchedule: {
+      enabled: document.getElementById('cfgEnabled').checked, // 一旦全体の有効/無効フラグと連動
+      startHour: parseInt(document.getElementById('cfgRtStartH').value),
+      startMinute: parseInt(document.getElementById('cfgRtStartM').value),
+      endHour: 23, // 基本的に夜まで
+      endMinute: 30,
+      intervalMinutes: parseInt(document.getElementById('cfgInterval').value) // 共通インターバル
     },
     closingTime: {
       hour: parseInt(document.getElementById('cfgCloseH').value),

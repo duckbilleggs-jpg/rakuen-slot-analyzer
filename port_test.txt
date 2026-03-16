@@ -1,0 +1,10 @@
+
+ComputerName           : ac-asd7zld-shard-00-00.vyf9qic.mongodb.net
+RemoteAddress          : 35.200.54.61
+RemotePort             : 27017
+InterfaceAlias         : Wi-Fi
+SourceAddress          : 192.168.206.104
+PingSucceeded          : False
+PingReplyDetails (RTT) : 0 ms
+TcpTestSucceeded       : False
+

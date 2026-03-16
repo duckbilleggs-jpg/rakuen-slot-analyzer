@@ -1,0 +1,12 @@
+Launching browser (Reload test)...
+1. Navigating to top page
+2. Navigating to Data List page
+Initial Page Title: エラーページ
+
+--- System Busy / Error Detected. Triggering Reload ---
+Waiting 3 seconds before reload...
+Reloading page...
+Page Title after reload: エラーページ
+Saved screenshot to ddelta_reload_screenshot.png
+
+--- Extracted Data (0 items) ---

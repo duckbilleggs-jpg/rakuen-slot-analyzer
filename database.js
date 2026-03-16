@@ -16,6 +16,7 @@ async function connectDB() {
           serverSelectionTimeoutMS: 30000,
           socketTimeoutMS: 60000,
           connectTimeoutMS: 30000,
+          family: 4
         });
         console.log('[DB] MongoDBに接続しました。');
       }

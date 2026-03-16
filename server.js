@@ -9,6 +9,7 @@ const { connectDB } = require('./database');
 const { scrapeToday, scrapeRecent, loadDayData, todayKey, normalizeDateKey } = require('./scraper');
 const { analyzeHighSetting, analyzeAll } = require('./analyzer');
 const { updateDBForNewMachines } = require('./machine_lookup');
+const { scrapeDDelta } = require('./scraper_ddelta');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,6 +31,11 @@ app.use(express.json());
 let lastScrapeTime = null;
 let scrapeStatus = 'idle'; // 'idle' | 'running' | 'error'
 let lastScrapeError = null;
+
+/** リアルタイムデータのキャッシュとステータス */
+let cachedRealtimeData = [];
+let lastRealtimeFetch = null;
+let realtimeFetchStatus = 'idle'; // 'idle' | 'running' | 'error'
 
 // ============================
 // API エンドポイント
@@ -54,8 +60,6 @@ async function isDataStale() {
   const { data, dateKey } = await getLatestData();
   // データ自体が無い場合は古いと判定
   if (!data) return true;
-  // lastScrapeTime が記録されていない（サーバー起動直後）でも
-  // MongoDBにデータがあればスクレイプ不要と判定する
   if (!lastScrapeTime) return false;
   const elapsed = Date.now() - new Date(lastScrapeTime).getTime();
   return elapsed > 6 * 60 * 60 * 1000; // 6時間以上経過したら古い
@@ -115,6 +119,102 @@ app.get('/api/all', async (req, res) => {
   }
 });
 
+// ============================
+// 新規機能: リアルタイム推測 & 朝一予測
+// ============================
+
+/** リアルタイムデータ取得（d-deltanet） */
+app.get('/api/realtime', async (req, res) => {
+    try {
+        console.log('[API] /api/realtime リクエスト受信');
+        
+        // キャッシュが空、かつ取得中でない場合のみ初回バックグラウンドフェッチを発火
+        if (cachedRealtimeData.length === 0 && realtimeFetchStatus !== 'running' && !SCRAPING_DISABLED) {
+            runRealtimeScrape(); 
+        }
+
+        res.json({
+            machines: cachedRealtimeData,
+            timestamp: lastRealtimeFetch || new Date().toISOString(),
+            status: realtimeFetchStatus,
+            message: 'リアルタイムデータ（設定5, 6予測抜粋）'
+        });
+    } catch (e) {
+        console.error('[API] /api/realtime エラー:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/** 激熱予測（過去履歴からの高信頼度・高設定台ランキング） */
+app.get('/api/forecast', async (req, res) => {
+    try {
+        console.log('[API] /api/forecast リクエスト受信');
+        const { Machine } = require('./database');
+        
+        // 直近30日間を対象とする
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        // "YYYY-MM-DD"の形式に変換した文字列で比較
+        const dateLimit = thirtyDaysAgo.toISOString().split('T')[0];
+
+        // 過去の取得ログから「出率が設定5の基準(約108%等)を超えている」＆「稼働が5000G以上」の台を集計する
+        // ※正確な設定値(1-6)は機種毎のspecsによって動的に変わるため、ここでは「出率108%以上、差枚+1500枚以上」等の基礎的な絞り込みから
+        // MongoDBの集計フレームワーク(Aggregation)を利用して「どの台番が多く高設定の基準を満たしたか」をカウントする。
+        const pipeline = [
+            {
+                // 条件1: 過去30日以内のデータ
+                // 条件2: 5000G以上回っている (信頼度が高い)
+                // 条件3: 出率107.5%以上 (概ね設定4後半〜5のボーダー)
+                $match: {
+                    dateKey: { $gte: dateLimit },
+                    G数: { $gte: 4000 },
+                    出率: { $gte: 107.5 }
+                }
+            },
+            {
+                // 台番・機種名ごとにグルーピングして出現回数をカウント
+                $group: {
+                    _id: { 機種名: "$機種名", 台番: "$台番" },
+                    高設定回数: { $sum: 1 },
+                    平均差枚: { $avg: "$差枚" },
+                    平均出率: { $avg: "$出率" },
+                    直近確認日: { $max: "$dateKey" }
+                }
+            },
+            {
+                // 高設定投入回数が多い順、同数なら平均差枚が多い順にソート
+                $sort: { 高設定回数: -1, 平均差枚: -1 }
+            },
+            {
+                $limit: 30 // 上位30台を抽出
+            }
+        ];
+
+        const forecastResults = await Machine.aggregate(pipeline);
+
+        // クライアント側で扱いやすいように整形
+        const formatted = forecastResults.map(r => ({
+            機種名: r._id.機種名,
+            台番: r._id.台番,
+            高設定回数: r.高設定回数,
+            平均差枚: Math.round(r.平均差枚),
+            平均出率: parseFloat(r.平均出率.toFixed(1)),
+            直近確認日: r.直近確認日,
+            おすすめ度: r.高設定回数 >= 3 ? '★★★ 激熱' : (r.高設定回数 >= 2 ? '★★☆ チャンス' : '★☆☆ 狙い目')
+        }));
+
+        res.json({
+            machines: formatted,
+            targetPeriod: '過去30日間',
+            criteria: '稼働4000G以上 かつ 出率107.5%以上',
+            timestamp: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error('[API] /api/forecast エラー:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 /** 手動スクレイプ実行 */
 app.post('/api/scrape', async (req, res) => {
   if (scrapeStatus === 'running') {
@@ -147,6 +247,7 @@ app.post('/api/config', (req, res) => {
     const newConfig = req.body;
     fs.writeFileSync(path.join(__dirname, 'config.json'), JSON.stringify(newConfig, null, 2), 'utf-8');
     setupCronJob(); // スケジュール再設定
+    setupRealtimeCronJob(); // リアルタイムスケジュール再設定
     res.json({ status: 'ok', message: '設定を更新しました' });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -154,7 +255,7 @@ app.post('/api/config', (req, res) => {
 });
 
 // ============================
-// スクレイプ実行
+// スクレイプ実行 (みんレポ過去データ)
 // ============================
 
 async function runScrape() {
@@ -185,10 +286,36 @@ async function runScrape() {
 }
 
 // ============================
+// リアルタイムスクレイプ実行 (d-deltanet)
+// ============================
+
+async function runRealtimeScrape() {
+    if (realtimeFetchStatus === 'running') return;
+    realtimeFetchStatus = 'running';
+    console.log(`[Server] リアルタイムデータ取得開始: ${new Date().toLocaleString('ja-JP')}`);
+
+    try {
+        const data = await scrapeDDelta();
+        if (data && data.length > 0) {
+            // エラー等で空配列が返った場合はキャッシュを上書きしない
+            cachedRealtimeData = data;
+        }
+        lastRealtimeFetch = new Date().toISOString();
+        realtimeFetchStatus = 'idle';
+        console.log(`[Server] リアルタイムデータ取得完了: ${new Date().toLocaleString('ja-JP')}`);
+    } catch (e) {
+        realtimeFetchStatus = 'error';
+        console.error(`[Server] リアルタイムデータ取得エラー: ${e.message}`);
+        setTimeout(() => { realtimeFetchStatus = 'idle'; }, 60000); // 1分後にリトライ可能に
+    }
+}
+
+// ============================
 // 定期実行スケジュール
 // ============================
 
 let cronJob = null;
+let cronJobRealtime = null;
 
 function setupCronJob() {
   if (cronJob) {
@@ -204,20 +331,15 @@ function setupCronJob() {
     return;
   }
 
-  // intervalMinutes間隔で startHour:startMinute 〜 endHour:endMinute の間実行
-  // cron式: */30 18-23 * * * のような形式
   const interval = sched.intervalMinutes;
   const startH = sched.startHour;
   const endH = sched.endHour;
 
-  // 分の指定: startMinuteからinterval間隔
   const minutes = [];
   for (let m = sched.startMinute; m < 60; m += interval) {
     minutes.push(m);
   }
   const minuteExpr = minutes.join(',');
-
-  // 時間範囲
   const hourExpr = `${startH}-${endH}`;
 
   const cronExpr = `${minuteExpr} ${hourExpr} * * *`;
@@ -231,6 +353,53 @@ function setupCronJob() {
     if (currentMinutes <= endMinutes) {
       console.log(`[Cron] 定期スクレイプ発動: ${now.toLocaleString('ja-JP')}`);
       runScrape();
+    }
+  });
+}
+
+function setupRealtimeCronJob() {
+  if (cronJobRealtime) {
+    cronJobRealtime.stop();
+    cronJobRealtime = null;
+  }
+
+  const config = loadConfig();
+  const sched = config.realtimeSchedule || {
+      enabled: config.schedule.enabled,
+      startHour: 18, startMinute: 0,
+      endHour: 23, endMinute: 30,
+      intervalMinutes: config.schedule.intervalMinutes
+  };
+
+  if (!sched.enabled) {
+    console.log('[Server] リアルタイム定期取得: 無効');
+    return;
+  }
+
+  const interval = sched.intervalMinutes;
+  const startH = sched.startHour;
+  const endH = sched.endHour;
+
+  const minutes = [];
+  for (let m = sched.startMinute; m < 60; m += interval) {
+    minutes.push(m);
+  }
+  const minuteExpr = minutes.join(',');
+  const hourExpr = `${startH}-${endH}`;
+
+  const cronExpr = `${minuteExpr} ${hourExpr} * * *`;
+  console.log(`[Server] リアルタイム定期取得設定: ${cronExpr} (${startH}:${String(sched.startMinute).padStart(2, '0')}〜${endH}:${String(sched.endMinute).padStart(2, '0')}, ${interval}分間隔)`);
+
+  cronJobRealtime = cron.schedule(cronExpr, () => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const endMinutes = endH * 60 + sched.endMinute;
+    const startMinutes = startH * 60 + sched.startMinute;
+
+    // リアルタイムは指定時間「以降」かつ「終了」まで
+    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+      console.log(`[Cron] リアルタイム定期取得発動: ${now.toLocaleString('ja-JP')}`);
+      runRealtimeScrape();
     }
   });
 }
@@ -256,7 +425,6 @@ function getLocalIP() {
     await connectDB();
   } catch (e) {
     console.error('[DB] 起動時のMongoDB接続失敗:', e.message);
-    // 接続失敗でも起動は継続（ローカル開発用）
   }
 
   app.listen(PORT, '0.0.0.0', () => {
@@ -267,14 +435,20 @@ function getLocalIP() {
     console.log(`   ─────────────────────────────`);
     const config = loadConfig();
     if (config.schedule.enabled) {
-      console.log(`   📅 自動取得: ${config.schedule.startHour}:${String(config.schedule.startMinute).padStart(2, '0')}〜${config.schedule.endHour}:${String(config.schedule.endMinute).padStart(2, '0')} / ${config.schedule.intervalMinutes}分間隔`);
+      console.log(`   📅 自動取得[過去]: ${config.schedule.startHour}:${String(config.schedule.startMinute).padStart(2, '0')}〜${config.schedule.endHour}:${String(config.schedule.endMinute).padStart(2, '0')} / ${config.schedule.intervalMinutes}分間隔`);
     }
+    const rtSched = config.realtimeSchedule || {};
+    if (rtSched.enabled) {
+      console.log(`   🔥 自動取得[本日]: ${rtSched.startHour}:${String(rtSched.startMinute).padStart(2, '0')}〜${rtSched.endHour}:${String(rtSched.endMinute).padStart(2, '0')} / ${rtSched.intervalMinutes}分間隔`);
+    }
+    
     console.log(`   🚪 閉店: ${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`);
     console.log(`   ⏱️  1G=${config.analysis.secondsPerGame}秒 / 最低G数=${config.analysis.minGames}G\n`);
     if (SCRAPING_DISABLED) {
       console.log('[Config] Cronジョブ無効 (DISABLE_SCRAPING=true) - 表示専用モード');
     } else {
       setupCronJob();
+      setupRealtimeCronJob();
     }
   });
 })();

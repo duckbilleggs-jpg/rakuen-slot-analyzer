@@ -1,0 +1,6 @@
+Launching browser (Final extraction)...
+1. Navigating to top page
+2. Navigating to Data List page
+
+--- Extracting Data ---
+Found 0 potential data rows.

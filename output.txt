@@ -1,0 +1,43 @@
+Fetching d-deltanet page...
+Status Code: 200
+Saved raw HTML to ddelta_test.html for analysis (length: 9701 bytes)
+Page Title: �y������ �o�ʏ��
+Found 29 readable links. First 10: [
+  { text: '���ׂ�', href: 'D0301.do?pmc=22021030&clc=03&pan=1&urt=-1' },
+  {
+    text: '1000�~/46���X��',
+    href: 'D0301.do?pmc=22021030&clc=03&pan=1&urt=2173'
+  },
+  {
+    text: '�y5�z�X��',
+    href: 'D0301.do?pmc=22021030&clc=03&pan=1&urt=500'
+  },
+  {
+    text: '�l�I�A�C���W���O���[EX [68]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120312&bn=1'
+  },
+  {
+    text: '�}�C�W���O���[V [39]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120010&bn=1'
+  },
+  {
+    text: '�X�}�X�� �k�l�̌� �]���̏�2 [28]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120343&bn=1'
+  },
+  {
+    text: 'L�X�}�X���k�l�̌� [24]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120122&bn=1'
+  },
+  {
+    text: 'L�p�`�X�� �v���@���@�������C��2�iL������2�j [22]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120336&bn=1'
+  },
+  {
+    text: 'L ������� [21]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120279&bn=1'
+  },
+  {
+    text: '�j���[�L���O�n�i�n�iV-30 [16]',
+    href: 'D2301.do?pmc=22021030&clc=03&urt=2173&mdc=120345&bn=1'
+  }
+]

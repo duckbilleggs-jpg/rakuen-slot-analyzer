@@ -16,7 +16,13 @@
       <div class="logo">
         <span class="logo-icon">🎰</span>
         <div>
-          <h1>楽園立川 設定判別</h1>
+          <h1 style="display: flex; align-items: center; gap: 10px;">
+            <select id="hallSelect" style="background: transparent; border: none; color: inherit; font-size: inherit; font-weight: inherit; font-family: inherit; appearance: none; cursor: pointer; outline: none; border-bottom: 2px dashed rgba(255,255,255,0.3); padding-bottom: 2px;">
+                <option value="tachikawa">楽園立川</option>
+                <option value="future1" disabled>（追加予定ホール...）</option>
+            </select>
+            設定判別
+          </h1>
           <p class="subtitle" id="dateDisplay">読み込み中...</p>
         </div>
       </div>
@@ -49,12 +55,19 @@
           </div>
         </div>
         <div class="config-group">
-          <label>取得期間</label>
+          <label>取得期間 (みんレポ)</label>
           <div class="config-row">
             <input type="number" id="cfgStartH" min="0" max="23" value="18" class="input-sm"> :
             <input type="number" id="cfgStartM" min="0" max="59" value="0" class="input-sm"> 〜
             <input type="number" id="cfgEndH" min="0" max="23" value="23" class="input-sm"> :
             <input type="number" id="cfgEndM" min="0" max="59" value="30" class="input-sm">
+          </div>
+        </div>
+        <div class="config-group">
+          <label>取得開始時間 (本日/リアルタイム)</label>
+          <div class="config-row">
+            <input type="number" id="cfgRtStartH" min="0" max="23" value="18" class="input-sm"> :
+            <input type="number" id="cfgRtStartM" min="0" max="59" value="0" class="input-sm">
           </div>
         </div>
         <div class="config-group">
@@ -86,13 +99,20 @@
 
   <!-- メイン -->
   <main>
+    <!-- タブナビゲーション -->
+    <div class="tabs-container" style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #334155; padding-bottom: 10px;">
+      <button class="tab-btn active" id="tab-past" onclick="switchTab('past')" style="padding: 10px 15px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🗓️ 過去データ(みんレポ)</button>
+      <button class="tab-btn" id="tab-realtime" onclick="switchTab('realtime')" style="padding: 10px 15px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🔥 リアルタイム(本日)</button>
+      <button class="tab-btn" id="tab-forecast" onclick="switchTab('forecast')" style="padding: 10px 15px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🌅 朝一予測(過去30日)</button>
+    </div>
+
     <!-- サマリーカード -->
-    <div class="summary-bar">
+    <div class="summary-bar" id="summaryBar">
       <div class="summary-card">
         <span class="summary-value" id="totalMachines">-</span>
         <span class="summary-label">全台数</span>
       </div>
-      <div class="summary-card highlight">
+      <div class="summary-card highlight" id="highSettingCard">
         <span class="summary-value" id="highSettingCount">-</span>
         <span class="summary-label">設定5以上</span>
       </div>
@@ -100,14 +120,14 @@
         <span class="summary-value" id="lastUpdate">-</span>
         <span class="summary-label">最終更新</span>
       </div>
-      <div class="summary-card">
+      <div class="summary-card" id="timeToCloseCard">
         <span class="summary-value" id="timeToClose">-</span>
         <span class="summary-label">閉店まで</span>
       </div>
     </div>
 
-    <!-- フィルタ -->
-    <div class="filter-bar">
+    <!-- フィルタ (過去データ用) -->
+    <div class="filter-bar" id="filterBarPast">
       <div class="filter-group">
         <label>ソート</label>
         <select id="sortSelect" onchange="renderTable()">
@@ -126,13 +146,15 @@
       </div>
     </div>
 
-    <!-- テーブル -->
+    <!-- テーブルコンテナ群 -->
     <div class="table-container" id="tableContainer">
       <div class="loading" id="loading">
         <div class="spinner"></div>
         <p>データを読み込んでいます...</p>
       </div>
-      <table id="dataTable" style="display:none">
+      
+      <!-- 1. 過去データテーブル -->
+      <table id="dataTablePast" class="data-table" style="display:none">
         <thead>
           <tr>
             <th class="th-setting">推定</th>
@@ -147,11 +169,46 @@
             <th class="th-num highlight-col">期待値(円)</th>
           </tr>
         </thead>
-        <tbody id="tableBody">
-        </tbody>
+        <tbody id="tableBodyPast"></tbody>
       </table>
+
+      <!-- 2. リアルタイムデータテーブル -->
+      <table id="dataTableRealtime" class="data-table" style="display:none">
+        <thead>
+          <tr>
+            <th class="th-setting">推定</th>
+            <th class="th-trust">信頼度</th>
+            <th>機種名</th>
+            <th>台番</th>
+            <th class="th-num">合算確率</th>
+            <th class="th-num">BB/RB/ART</th>
+            <th class="th-num">G数</th>
+            <th class="th-num">残りG</th>
+            <th class="th-num highlight-col">期待差枚</th>
+            <th class="th-num highlight-col">期待値(円)</th>
+          </tr>
+        </thead>
+        <tbody id="tableBodyRealtime"></tbody>
+      </table>
+
+      <!-- 3. 朝一予測データテーブル -->
+      <table id="dataTableForecast" class="data-table" style="display:none">
+        <thead>
+          <tr>
+            <th class="th-trust" style="width:120px">おすすめ度</th>
+            <th>機種名</th>
+            <th>台番</th>
+            <th class="th-num" style="color:#ef4444; font-weight:bold;">高設定回数</th>
+            <th class="th-num">平均出率</th>
+            <th class="th-num">平均差枚</th>
+            <th>最終確認日</th>
+          </tr>
+        </thead>
+        <tbody id="tableBodyForecast"></tbody>
+      </table>
+
       <div class="empty-state" id="emptyState" style="display:none">
-        <p>🔍 設定5以上の台は見つかりませんでした</p>
+        <p>🔍 条件に一致する台は見つかりませんでした</p>
         <p class="empty-sub">データ取得ボタンを押すか、自動取得時間をお待ちください</p>
       </div>
     </div>
@@ -159,7 +216,7 @@
 
   <!-- フッター -->
   <footer>
-    <p>データソース: <a href="https://min-repo.com" target="_blank" rel="noopener">みんレポ</a> | 自動更新: <span id="footerSchedule">-</span></p>
+    <p>データソース: <a href="https://min-repo.com" target="_blank" rel="noopener">みんレポ</a> & d-deltanet | 自動更新: <span id="footerSchedule">-</span></p>
   </footer>
 
   <script src="app.js"></script>

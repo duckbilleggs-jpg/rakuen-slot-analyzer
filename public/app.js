@@ -118,9 +118,15 @@ async function fetchRealtimeData() {
     if (data.timestamp) {
       const t = new Date(data.timestamp);
       const timeStr = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
-      document.getElementById('dateDisplay').textContent = `本日 (リアルタイム) | 最終更新: ${timeStr}`;
+      document.getElementById('dateDisplay').textContent = `本日 (リアルタイム) | 最終更新: ${timeStr} | ${currentData.realtime.length}台`;
     } else {
-      document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | 未取得';
+      const now = new Date();
+      const h = now.getHours();
+      if (h >= 12 && h <= 22) {
+        document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | 自動取得待ち（30分ごと更新）';
+      } else {
+        document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | 営業時間外（12:00〜22:30に自動取得）';
+      }
     }
 
     // リアルタイム用の機種フィルタを更新
@@ -149,7 +155,33 @@ async function fetchRealtimeData() {
     updateCountdown();
 
     setLoading(false);
-    renderRealtimeTable();
+    if (currentData.realtime.length > 0) {
+      renderRealtimeTable();
+    } else {
+      // データ0件時は明確なステータスを表示
+      document.getElementById('dataTableRealtime').style.display = 'none';
+      const empty = document.getElementById('emptyState');
+      const now = new Date();
+      const h = now.getHours();
+      let msg = '';
+      if (h >= 12 && h <= 22) {
+        msg = '<div style="text-align:center;padding:40px 20px;">'
+          + '<div style="font-size:48px;margin-bottom:16px;">📡</div>'
+          + '<div style="font-size:18px;font-weight:bold;margin-bottom:8px;">データ取得準備中</div>'
+          + '<div style="color:#aaa;">GitHub Actionsが30分ごとに自動取得します</div>'
+          + '<div style="color:#888;margin-top:8px;font-size:13px;">次の取得: 毎時 :00 / :30</div>'
+          + '</div>';
+      } else {
+        msg = '<div style="text-align:center;padding:40px 20px;">'
+          + '<div style="font-size:48px;margin-bottom:16px;">🌙</div>'
+          + '<div style="font-size:18px;font-weight:bold;margin-bottom:8px;">営業時間外</div>'
+          + '<div style="color:#aaa;">リアルタイムデータは 12:00〜22:30 に自動取得されます</div>'
+          + '<div style="color:#888;margin-top:8px;font-size:13px;">過去データタブでは過去の設定判別結果を閲覧できます</div>'
+          + '</div>';
+      }
+      empty.innerHTML = msg;
+      empty.style.display = 'block';
+    }
   } catch (e) {
     console.error('リアルタイム取得エラー:', e);
     if (activeTab === 'realtime') setLoading(false);

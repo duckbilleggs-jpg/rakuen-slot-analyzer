@@ -389,50 +389,9 @@ function setupCronJob() {
 }
 
 function setupRealtimeCronJob() {
-  if (cronJobRealtime) {
-    cronJobRealtime.stop();
-    cronJobRealtime = null;
-  }
-
-  const config = loadConfig();
-  const sched = config.realtimeSchedule || {
-      enabled: config.schedule.enabled,
-      startHour: 18, startMinute: 0,
-      endHour: 23, endMinute: 30,
-      intervalMinutes: config.schedule.intervalMinutes
-  };
-
-  if (!sched.enabled) {
-    console.log('[Server] リアルタイム定期取得: 無効');
-    return;
-  }
-
-  const interval = sched.intervalMinutes;
-  const startH = sched.startHour;
-  const endH = sched.endHour;
-
-  const minutes = [];
-  for (let m = sched.startMinute; m < 60; m += interval) {
-    minutes.push(m);
-  }
-  const minuteExpr = minutes.join(',');
-  const hourExpr = `${startH}-${endH}`;
-
-  const cronExpr = `${minuteExpr} ${hourExpr} * * *`;
-  console.log(`[Server] リアルタイム定期取得設定: ${cronExpr} (${startH}:${String(sched.startMinute).padStart(2, '0')}〜${endH}:${String(sched.endMinute).padStart(2, '0')}, ${interval}分間隔)`);
-
-  cronJobRealtime = cron.schedule(cronExpr, () => {
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const endMinutes = endH * 60 + sched.endMinute;
-    const startMinutes = startH * 60 + sched.startMinute;
-
-    // リアルタイムは指定時間「以降」かつ「終了」まで
-    if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
-      console.log(`[Cron] リアルタイム定期取得発動: ${now.toLocaleString('ja-JP')}`);
-      runRealtimeScrape();
-    }
-  });
+  // リアルタイムデータ取得はGitHub Actionsが担当
+  if (cronJobRealtime) { cronJobRealtime.stop(); cronJobRealtime = null; }
+  console.log('[Server] リアルタイム定期取得: GitHub Actions管轄のためスキップ');
 }
 
 // ============================

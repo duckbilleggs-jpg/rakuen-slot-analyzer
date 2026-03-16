@@ -1,361 +1,271 @@
 /**
  * scraper_ddelta.js — d-deltanetからリアルタイム出玉情報を取得し、高設定推測を行うモジュール
  * 
- * 方針: 人間の操作を忠実に再現する「クリックスルー方式」
- *   ポータル → 機種クリック → 「大当り一覧」クリック → データ読む → 「戻る」で機種ページ → 「戻る」でポータル → 次の機種
- *   page.goto()はセッション確立の初回のみ使用
+ * HTTP GET方式: Puppeteer不要。PADプロジェクトと同じアプローチ。
+ *   URLアクセスでHTML取得(Shift_JIS) → 正規表現で解析 → 高速・安定
  */
-const puppeteer = require('puppeteer');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { loadDB, getDefaultSpecs } = require('./machine_lookup');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
-const PORTAL_URL = 'https://www.d-deltanet.com/pc/D0301.do?pmc=22021030&clc=03&urt=2173&pan=1';
+const BASE_URL = 'https://www.d-deltanet.com/pc';
+const PORTAL_PATH = '/D0301.do?pmc=22021030&clc=03&urt=2173&pan=';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-/** ランダムな待機時間（人間っぽさ） */
-function humanDelay(min = 800, max = 2000) {
-    const ms = Math.floor(Math.random() * (max - min)) + min;
-    return new Promise(r => setTimeout(r, ms));
-}
-
-/** Cookie同意バナーの処理 */
-async function handleCookieConsent(page) {
-    try {
-        const agreeBtn = await page.$('.agree button');
-        if (agreeBtn) {
-            console.log('[DDelta] Cookie同意ボタンをクリック');
-            await agreeBtn.click();
-            await humanDelay(1000, 2000);
-        }
-    } catch (e) {}
-}
-
-/** エラーページかどうかチェック */
-async function isErrorPage(page) {
-    try {
-        return await page.evaluate(() => {
-            const title = document.title || '';
-            const body = document.body ? document.body.innerText : '';
-            return title.includes('エラー') || body.includes('混み合っております');
+/** HTTP GETでHTMLを取得（Shift_JISデコード対応） */
+function fetchHTML(urlPath) {
+    const fullUrl = urlPath.startsWith('http') ? urlPath : `${BASE_URL}/${urlPath}`;
+    return new Promise((resolve, reject) => {
+        const req = https.get(fullUrl, {
+            headers: { 'User-Agent': USER_AGENT }
+        }, (res) => {
+            const chunks = [];
+            res.on('data', chunk => chunks.push(chunk));
+            res.on('end', () => {
+                const buf = Buffer.concat(chunks);
+                // Shift_JISデコード: iconv-liteがあれば使用、なければ自前デコード
+                let html;
+                try {
+                    const iconv = require('iconv-lite');
+                    html = iconv.decode(buf, 'Shift_JIS');
+                } catch (e) {
+                    // iconv-liteがない場合はlatin1→手動置換(フォールバック)
+                    html = buf.toString('latin1');
+                }
+                resolve(html);
+            });
+            res.on('error', reject);
         });
-    } catch (e) {
-        return false;
-    }
-}
-
-/** エラーなら「戻る」を使ってリトライ */
-async function retryOnError(page, label, retries = 3) {
-    for (let i = 0; i < retries; i++) {
-        if (!(await isErrorPage(page))) return true;
-        console.log(`[DDelta] ⚠️ ${label} エラー検出 (${i+1}/${retries}) - 待機して再読み込み...`);
-        await humanDelay(3000 + i * 2000, 5000 + i * 2000);
-        await page.reload({ waitUntil: 'domcontentloaded', timeout: 20000 });
-        await humanDelay(1500, 3000);
-    }
-    return !(await isErrorPage(page));
-}
-
-/** ページ上の「戻る」リンクをクリック */
-async function clickBackLink(page) {
-    const backLink = await page.evaluateHandle(() => {
-        const links = Array.from(document.querySelectorAll('a'));
-        // footerの「戻る」リンクを探す
-        return links.find(a => {
-            const text = a.innerText.trim();
-            return text === '戻る' || text.endsWith('戻る');
-        });
+        req.on('error', reject);
+        req.setTimeout(30000, () => { req.destroy(); reject(new Error('タイムアウト')); });
     });
+}
+
+/** sleep */
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/**
+ * ポータルページから全機種のリンク情報を取得
+ * 返り値: [{name: '機種名', url: 'D2301.do?...'}]
+ */
+async function fetchModelList() {
+    const allModels = [];
+    let page = 1;
     
-    if (backLink && backLink.asElement()) {
-        await backLink.asElement().click();
-        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 });
-        await humanDelay(500, 1500);
-        return true;
+    while (true) {
+        console.log(`[DDelta] ポータル ページ${page} を取得中...`);
+        const html = await fetchHTML(`D0301.do?pmc=22021030&clc=03&urt=2173&pan=${page}`);
+        
+        // エラーページチェック
+        if (html.includes('エラーページ') || html.includes('表示できません')) {
+            console.log(`[DDelta] ⚠️ ポータル ページ${page} エラー。`);
+            if (page === 1) {
+                console.log('[DDelta] ❌ ポータルにアクセスできません。営業時間外の可能性があります。');
+                return [];
+            }
+            break;
+        }
+        
+        // 機種リンクを正規表現で抽出
+        // 構造: <a href="D2301.do?...">...<li>...<div>...</div>機種名 [台数]</li>...</a>
+        const modelPattern = /<a\s+href="(D2301\.do\?[^"]+)"[^>]*>([\s\S]*?)<\/a>/g;
+        let match;
+        let pageCount = 0;
+        
+        while ((match = modelPattern.exec(html)) !== null) {
+            const url = match[1].replace(/&amp;/g, '&');
+            // HTMLタグを除去してテキストだけ取得
+            let rawText = match[2].replace(/<[^>]+>/g, '').trim();
+            // 「機種名 [台数]」から台数部分を除去
+            let name = rawText.replace(/\[\d+\]/, '').trim();
+            // 複数空白を1つに
+            name = name.replace(/\s+/g, ' ').trim();
+            
+            if (name && name.length > 1 && !name.includes('すべて')) {
+                allModels.push({ name, url });
+                pageCount++;
+            }
+        }
+        
+        console.log(`[DDelta] ページ${page}: ${pageCount} 機種`);
+        
+        // 次ページリンクがあるかチェック
+        const nextPagePattern = `pan=${page + 1}`;
+        if (!html.includes(nextPagePattern)) {
+            break;
+        }
+        
+        page++;
+        await sleep(500); // サーバー負荷軽減
     }
-    return false;
+    
+    return allModels;
 }
 
 /**
- * メイン: puppeteerでd-deltanetから全機種のリアルタイムデータを取得
+ * 機種の大当たり一覧ページからテーブルデータを取得
+ * 
+ * 流れ: 機種ページ(D2301) → 大当たり一覧リンクのURL抽出 → そのページのテーブル解析
+ */
+async function fetchModelData(modelInfo) {
+    const { name, url } = modelInfo;
+    
+    // Step 1: 機種ページを取得
+    let html;
+    try {
+        html = await fetchHTML(url);
+    } catch (e) {
+        console.log(`[DDelta]   ⚠️ 機種ページ取得失敗: ${e.message}`);
+        return [];
+    }
+    
+    if (html.includes('エラーページ') || html.includes('表示できません')) {
+        console.log(`[DDelta]   ⚠️ 機種ページエラー（データ表示不可）`);
+        return [];
+    }
+    
+    // Step 2: 「大当り一覧」リンクのURLを抽出
+    const dataListMatch = html.match(/href="([^"]*)"[^>]*>[^<]*大当り一覧/);
+    if (!dataListMatch) {
+        // 大当たり一覧がない場合、現在のページにテーブルがあるかもしれない
+        console.log(`[DDelta]   ⚠️ 大当り一覧リンクなし。直接テーブルを試みます。`);
+        return parseDataTable(html, name);
+    }
+    
+    const dataListUrl = dataListMatch[1].replace(/&amp;/g, '&');
+    
+    // Step 3: 大当り一覧ページを取得
+    await sleep(300);
+    let dataHtml;
+    try {
+        dataHtml = await fetchHTML(dataListUrl);
+    } catch (e) {
+        console.log(`[DDelta]   ⚠️ 大当り一覧取得失敗: ${e.message}`);
+        return [];
+    }
+    
+    if (dataHtml.includes('エラーページ') || dataHtml.includes('表示できません')) {
+        console.log(`[DDelta]   ⚠️ 大当り一覧エラー`);
+        return [];
+    }
+    
+    return parseDataTable(dataHtml, name);
+}
+
+/**
+ * HTMLテーブルからデータを解析
+ * d-deltanetのテーブル構造:
+ *   <td class="table_head">台番</td><td class="table_head">累計G数</td>...
+ *   <td>3501</td><td>5432</td>...
+ */
+function parseDataTable(html, modelName) {
+    const rows = [];
+    
+    // テーブルを正規表現で解析
+    // ヘッダー行: table_headクラスのtdからカラム名を特定
+    const headerMatch = html.match(/<tr[^>]*>(\s*<td[^>]*class="table_head"[^>]*>[^<]*<\/td>\s*)+<\/tr>/);
+    
+    let colIdx = { 台番: -1, G数: -1, BB: -1, RB: -1, ART: -1 };
+    
+    if (headerMatch) {
+        const headerRow = headerMatch[0];
+        const headerCells = [...headerRow.matchAll(/<td[^>]*>([^<]*)<\/td>/g)];
+        headerCells.forEach((cell, idx) => {
+            const text = cell[1].trim();
+            if (text.includes('台番')) colIdx.台番 = idx;
+            else if (text.includes('累計G') || text.includes('累計ゲーム') || text.includes('ゲーム')) colIdx.G数 = idx;
+            else if (text.includes('BB')) colIdx.BB = idx;
+            else if (text.includes('RB')) colIdx.RB = idx;
+            else if (text.includes('ART')) colIdx.ART = idx;
+        });
+    }
+    
+    if (colIdx.台番 === -1 || colIdx.G数 === -1) {
+        return [];
+    }
+    
+    // データ行を抽出: table_headでもtable_footでもない通常のtr
+    const trPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
+    let trMatch;
+    
+    while ((trMatch = trPattern.exec(html)) !== null) {
+        const trContent = trMatch[1];
+        
+        // ヘッダー行・フッター行をスキップ
+        if (trContent.includes('table_head') || trContent.includes('table_foot')) continue;
+        
+        // tdを抽出
+        const tdCells = [...trContent.matchAll(/<td[^>]*>([^<]*)<\/td>/g)];
+        if (tdCells.length < 2) continue;
+        
+        const cellTexts = tdCells.map(c => c[1].trim());
+        
+        const 台番 = parseInt(cellTexts[colIdx.台番]);
+        const G数 = parseInt(cellTexts[colIdx.G数]);
+        
+        if (!isNaN(台番) && !isNaN(G数)) {
+            rows.push({
+                機種名: modelName,
+                台番,
+                G数,
+                BB回数: colIdx.BB !== -1 ? (parseInt(cellTexts[colIdx.BB]) || 0) : 0,
+                RB回数: colIdx.RB !== -1 ? (parseInt(cellTexts[colIdx.RB]) || 0) : 0,
+                ART回数: colIdx.ART !== -1 ? (parseInt(cellTexts[colIdx.ART]) || 0) : 0
+            });
+        }
+    }
+    
+    return rows;
+}
+
+/**
+ * メイン: HTTP GETでd-deltanetから全機種のリアルタイムデータを取得
  */
 async function scrapeDDelta(onProgress) {
-    console.log('[DDelta] ブラウザを起動し、リアルタイムデータの取得を開始します...');
-    const launchOpts = {
-        headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process', '--window-size=1280,1080']
-    };
-    // Render等: システムのChromiumを使う場合
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        launchOpts.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        console.log(`[DDelta] executablePath: ${launchOpts.executablePath}`);
-    }
-    const browser = await puppeteer.launch(launchOpts);
+    console.log('[DDelta] HTTP GET方式でリアルタイムデータの取得を開始します...');
     
     const results = [];
     
-    try {
-        const page = await browser.newPage();
-        await page.setViewport({ width: 1280, height: 1080 });
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');
-        
-        // ===== STEP 1: ポータルページにアクセス（セッション確立） =====
-        console.log('[DDelta] ポータルページへアクセス...');
-        await page.goto(PORTAL_URL, { waitUntil: 'networkidle2', timeout: 60000 });
-        await handleCookieConsent(page);
-        
-        if (await isErrorPage(page)) {
-            if (!(await retryOnError(page, 'ポータル', 3))) {
-                console.error('[DDelta] ❌ ポータルに接続できません。');
-                return [];
-            }
-        }
-        
-        // ===== STEP 2: 全ページの機種リストを収集 =====
-        // 現在のページ（ポータル）の機種名を取得し、「次へ」で全ページ巡回
-        const allModelNames = [];
-        let portalPageNum = 1;
-        
-        while (true) {
-            const pageNames = await page.evaluate(() => {
-                const names = [];
-                document.querySelectorAll('#model_link ul a').forEach(a => {
-                    let text = a.innerText.replace(/\n/g, '').trim().replace(/\[\d+\]$/, '').trim();
-                    if (text && text.length > 1 && !text.includes('すべて')) {
-                        names.push(text);
-                    }
-                });
-                return names;
-            });
-            
-            console.log(`[DDelta] ポータル ページ${portalPageNum}: ${pageNames.length} 機種`);
-            allModelNames.push(...pageNames);
-            
-            // 「次へ」リンクがあればクリック
-            const nextLink = await page.evaluateHandle(() => {
-                const links = Array.from(document.querySelectorAll('.list_navigation a, a'));
-                return links.find(a => a.innerText.includes('次へ'));
-            });
-            
-            if (nextLink && nextLink.asElement()) {
-                portalPageNum++;
-                await nextLink.asElement().click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 });
-                await humanDelay(1000, 2000);
-                if (await isErrorPage(page)) {
-                    if (!(await retryOnError(page, `ポータルP${portalPageNum}`, 2))) break;
-                }
-            } else {
-                break; // 最後のページ
-            }
-        }
-        
-        console.log(`[DDelta] 合計 ${allModelNames.length} 機種を発見。データ取得を開始...\n`);
-        
-        // ポータルのページ1に戻る（「前へ」をクリックするか、最初の1回だけgoto）
-        if (portalPageNum > 1) {
-            await page.goto(PORTAL_URL, { waitUntil: 'networkidle2', timeout: 30000 });
-            await humanDelay(500, 1000);
-            await handleCookieConsent(page);
-        }
-        
-        // ===== STEP 3: 各機種を人間のように順番に巡回 =====
-        // 方針: ポータルの各ページで、上から順にクリックして巡回
-        //       1つの機種が終わったら「戻る」×2でポータルに戻り、次の機種をクリック
-        let currentPortalPage = 1;
-        let processedOnThisPage = 0;
-        
-        for (let i = 0; i < allModelNames.length; i++) {
-            const modelName = allModelNames[i];
-            console.log(`[DDelta] (${i+1}/${allModelNames.length}) 「${modelName}」`);
-            if (onProgress) onProgress(i + 1, allModelNames.length, modelName);
-            
-            try {
-                // 現在のポータルページで機種リンクを探す
-                let modelLink = await page.evaluateHandle((name) => {
-                    const links = Array.from(document.querySelectorAll('#model_link ul a, a[href*="D2301"]'));
-                    return links.find(a => {
-                        const text = a.innerText.replace(/\n/g, '').trim();
-                        return text.includes(name);
-                    });
-                }, modelName);
-                
-                // 見つからなければ「次へ」で次のポータルページに移動
-                if (!modelLink || !modelLink.asElement()) {
-                    const nextLink = await page.evaluateHandle(() => {
-                        const links = Array.from(document.querySelectorAll('a'));
-                        return links.find(a => a.innerText.includes('次へ'));
-                    });
-                    if (nextLink && nextLink.asElement()) {
-                        currentPortalPage++;
-                        processedOnThisPage = 0;
-                        console.log(`[DDelta]   → ポータル次ページ(P${currentPortalPage})へ移動`);
-                        await nextLink.asElement().click();
-                        await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 });
-                        await humanDelay(1000, 2000);
-                        if (await isErrorPage(page)) {
-                            if (!(await retryOnError(page, `ポータルP${currentPortalPage}`, 2))) break;
-                        }
-                        
-                        // 再度探す
-                        modelLink = await page.evaluateHandle((name) => {
-                            const links = Array.from(document.querySelectorAll('#model_link ul a, a[href*="D2301"]'));
-                            return links.find(a => {
-                                const text = a.innerText.replace(/\n/g, '').trim();
-                                return text.includes(name);
-                            });
-                        }, modelName);
-                    }
-                }
-                
-                if (!modelLink || !modelLink.asElement()) {
-                    console.log(`[DDelta]   ⚠️ リンクが見つかりません。スキップ。`);
-                    continue;
-                }
-                
-                // ===== 機種リンクをクリック =====
-                await humanDelay(500, 1200);
-                await modelLink.asElement().click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 });
-                await humanDelay(800, 1500);
-                
-                if (await isErrorPage(page)) {
-                    if (!(await retryOnError(page, `${modelName} 機種ページ`, 2))) {
-                        console.log(`[DDelta]   ⚠️ 機種ページ取得失敗。スキップ。`);
-                        // 戻れるなら戻る
-                        await clickBackLink(page) || await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
-                        await humanDelay(500, 1000);
-                        continue;
-                    }
-                }
-                
-                // ===== 「大当り一覧」をクリック =====
-                const dataListLink = await page.evaluateHandle(() => {
-                    const links = Array.from(document.querySelectorAll('a'));
-                    return links.find(a => a.innerText.includes('大当り一覧'));
-                });
-
-                if (!dataListLink || !dataListLink.asElement()) {
-                    console.log(`[DDelta]   ⚠️ 「大当り一覧」リンクなし。戻ります。`);
-                    await clickBackLink(page);
-                    continue;
-                }
-                
-                await humanDelay(400, 1000);
-                await dataListLink.asElement().click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 20000 });
-                await humanDelay(1000, 2000);
-                
-                // エラーリトライ
-                if (!(await retryOnError(page, `${modelName} 大当り一覧`, 3))) {
-                    console.log(`[DDelta]   ⚠️ 大当り一覧取得失敗。戻ります。`);
-                    // 戻る×2
-                    await clickBackLink(page);
-                    await clickBackLink(page);
-                    continue;
-                }
-                
-                // ===== テーブルからデータ抽出 =====
-                // 重要: d-deltanetのテーブルはヘッダーに<th>ではなく<td class="table_head">を使用
-                const currentData = await page.evaluate((name) => {
-                    const rowsData = [];
-                    let hasParsedHeaders = false;
-                    let colIdx = { 台番: -1, G数: -1, BB: -1, RB: -1, ART: -1 };
-
-                    document.querySelectorAll('table tr').forEach(tr => {
-                        const tds = Array.from(tr.querySelectorAll('td'));
-                        const cellTexts = tds.map(td => td.innerText.trim());
-                        
-                        // ヘッダー行の検出: td.table_headクラスまたはthタグ
-                        const isHeaderRow = tds.some(td => td.classList.contains('table_head')) ||
-                                           tr.querySelectorAll('th').length > 0;
-                        
-                        if (isHeaderRow && !hasParsedHeaders) {
-                            // ヘッダー行: th or td.table_head のテキストから列インデックスを取得
-                            const headerTexts = tds.length > 0 ? cellTexts : 
-                                Array.from(tr.querySelectorAll('th')).map(th => th.innerText.trim());
-                            headerTexts.forEach((h, idx) => {
-                                if (h.includes('台番')) colIdx.台番 = idx;
-                                else if (h.includes('累計G') || h.includes('累計ゲーム') || h.includes('ゲーム')) colIdx.G数 = idx;
-                                else if (h.includes('BB')) colIdx.BB = idx;
-                                else if (h.includes('RB')) colIdx.RB = idx;
-                                else if (h.includes('ART')) colIdx.ART = idx;
-                            });
-                            hasParsedHeaders = true;
-                            return;
-                        }
-                        
-                        // データ行: table_footクラス（平均行など）を除外
-                        const isFooterRow = tds.some(td => td.classList.contains('table_foot'));
-                        
-                        if (!isFooterRow && cellTexts.length >= 2 && colIdx.台番 !== -1 && colIdx.G数 !== -1) {
-                            const 台番 = parseInt(cellTexts[colIdx.台番]);
-                            const G数 = parseInt(cellTexts[colIdx.G数]);
-                            if (!isNaN(台番) && !isNaN(G数)) {
-                                rowsData.push({
-                                    機種名: name, 台番, G数,
-                                    BB回数: colIdx.BB !== -1 ? (parseInt(cellTexts[colIdx.BB]) || 0) : 0,
-                                    RB回数: colIdx.RB !== -1 ? (parseInt(cellTexts[colIdx.RB]) || 0) : 0,
-                                    ART回数: colIdx.ART !== -1 ? (parseInt(cellTexts[colIdx.ART]) || 0) : 0
-                                });
-                            }
-                        }
-                    });
-                    return rowsData;
-                }, modelName);
-
-                if (currentData.length > 0) {
-                    console.log(`[DDelta]   ⭕ ${currentData.length} 台取得`);
-                    results.push(...currentData);
-                } else {
-                    console.log(`[DDelta]   ⚠️ データ0件`);
-                }
-                
-                // ===== 「戻る」×2 でポータルに戻る =====
-                // 大当り一覧 → 機種トップ → ポータル (人間の操作を再現)
-                await humanDelay(500, 1200);
-                
-                // 戻る1回目: 大当り一覧 → 機種トップ
-                if (!(await clickBackLink(page))) {
-                    // フォールバック: ブラウザの「戻る」
-                    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
-                    await humanDelay(500, 1000);
-                }
-                
-                // 戻る2回目: 機種トップ → ポータル
-                if (!(await clickBackLink(page))) {
-                    await page.goBack({ waitUntil: 'domcontentloaded' }).catch(() => {});
-                    await humanDelay(500, 1000);
-                }
-                
-                processedOnThisPage++;
-                
-            } catch (innerErr) {
-                console.log(`[DDelta]   ⚠️ エラー: ${innerErr.message}`);
-                // エラー時はポータルに確実に戻す
-                try {
-                    await page.goto(PORTAL_URL, { waitUntil: 'domcontentloaded', timeout: 20000 });
-                    await humanDelay(1000, 2000);
-                    await handleCookieConsent(page);
-                } catch(e) {}
-            }
-            
-            // 機種間のインターバル（人間っぽく）
-            await humanDelay(800, 2000);
-        }
-        
-    } catch (error) {
-        console.error('[DDelta] 致命的エラー:', error);
-    } finally {
-        await browser.close();
+    // Step 1: ポータルから全機種リスト取得
+    const models = await fetchModelList();
+    
+    if (models.length === 0) {
+        console.log('[DDelta] ❌ 機種リストが空です。営業時間外の可能性があります。');
+        return [];
     }
-
+    
+    console.log(`[DDelta] 合計 ${models.length} 機種を発見。データ取得を開始...\n`);
+    
+    // Step 2: 各機種のデータを取得
+    for (let i = 0; i < models.length; i++) {
+        const model = models[i];
+        console.log(`[DDelta] (${i+1}/${models.length}) 「${model.name}」`);
+        if (onProgress) onProgress(i + 1, models.length, model.name);
+        
+        try {
+            const data = await fetchModelData(model);
+            if (data.length > 0) {
+                console.log(`[DDelta]   ⭕ ${data.length} 台取得`);
+                results.push(...data);
+            } else {
+                console.log(`[DDelta]   ⚠️ データ0件`);
+            }
+        } catch (err) {
+            console.log(`[DDelta]   ⚠️ エラー: ${err.message}`);
+        }
+        
+        // サーバー負荷軽減（500ms〜1s間隔）
+        await sleep(500 + Math.floor(Math.random() * 500));
+    }
+    
     console.log(`\n[DDelta] 合計 ${results.length} 台の生データを取得。分析開始...`);
     return analyzeRealtimeData(results);
 }
 
 // ========================================
-// 設定推測ロジック
+// 設定推測ロジック（変更なし）
 // ========================================
 
 function getProbThresholds(modelName) {

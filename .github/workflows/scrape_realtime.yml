@@ -1,0 +1,30 @@
+name: リアルタイムスクレイピング - 楽園立川 (d-deltanet)
+
+on:
+  schedule:
+    - cron: '0,30 3-13 * * *'
+  workflow_dispatch:
+
+jobs:
+  scrape-realtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js セットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 依存パッケージインストール
+        run: npm ci
+
+      - name: リアルタイムスクレイピング実行
+        run: node scrape_realtime_cli.js
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        timeout-minutes: 15

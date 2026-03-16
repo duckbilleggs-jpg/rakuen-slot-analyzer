@@ -179,10 +179,8 @@ app.get('/api/realtime', async (req, res) => {
             }
         }
 
-        // キャッシュ空 & idle なら自動スクレイプ開始
-        if (cachedRealtimeData.length === 0 && realtimeFetchStatus !== 'running') {
-            runRealtimeScrape();
-        }
+        // d-deltanetがクラウドIPを403で拒否するため、サーバー直接取得は無効化
+        // ローカルPCのCLIスクリプト(scrape_realtime_cli.js)で取得→MongoDB保存する方式
 
         res.json({
             machines: cachedRealtimeData,

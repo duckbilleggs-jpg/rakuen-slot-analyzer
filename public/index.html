@@ -130,7 +130,7 @@
     <div class="filter-bar" id="filterBarPast">
       <div class="filter-group">
         <label>ソート</label>
-        <select id="sortSelect" onchange="renderTable()">
+        <select id="sortSelect" onchange="renderPastTable()">
           <option value="ev">期待値(円)順</option>
           <option value="setting">推定設定順</option>
           <option value="rate">出率順</option>
@@ -140,7 +140,7 @@
       </div>
       <div class="filter-group">
         <label>機種フィルタ</label>
-        <select id="machineFilter" onchange="renderTable()">
+        <select id="machineFilter" onchange="renderPastTable()">
           <option value="all">全機種</option>
         </select>
       </div>
@@ -190,7 +190,6 @@
             <th class="th-num">出率</th>
             <th class="th-num">差枚</th>
             <th class="th-num">G数</th>
-            <th class="th-num">残りG</th>
             <th class="th-num highlight-col">期待差枚</th>
             <th class="th-num highlight-col">期待値(円)</th>
           </tr>

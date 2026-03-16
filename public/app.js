@@ -257,7 +257,6 @@ function renderPastTable() {
             <td class="td-num">${m.出率.toFixed(1)}%</td>
             <td class="td-num ${samaiClass}">${m.差枚.toLocaleString()}</td>
             <td class="td-num">${m.G数.toLocaleString()}</td>
-            <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
             <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
             <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
         </tr>

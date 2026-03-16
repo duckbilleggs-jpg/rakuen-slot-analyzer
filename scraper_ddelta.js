@@ -19,7 +19,7 @@ async function scrapeDDelta() {
   console.log('[DDelta Scraper] ブラウザを起動し、リアルタイムデータの取得を開始します...');
   const browser = await puppeteer.launch({ 
       headless: "new",
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1280,1080']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--window-size=1280,1080']
   });
   
   const results = [];
@@ -68,8 +68,8 @@ async function scrapeDDelta() {
         try {
             // その機種のトップページに直接飛ぶ
             const modelUrl = new URL(model.url, PORTAL_URL).href;
-            await page.goto(modelUrl, { waitUntil: 'domcontentloaded' });
-            await new Promise(r => setTimeout(r, 1000));
+            await page.goto(modelUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+            await new Promise(r => setTimeout(r, 200));
 
             // 「大当り一覧」のリンクを探してクリック
             const dataListLink = await page.evaluateHandle(() => {
@@ -79,8 +79,8 @@ async function scrapeDDelta() {
 
             if (dataListLink && dataListLink.asElement()) {
                 await dataListLink.asElement().click();
-                await page.waitForNavigation({ waitUntil: 'domcontentloaded' });
-                await new Promise(r => setTimeout(r, 1500)); // テーブルの描画待ち
+                await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 15000 });
+                await new Promise(r => setTimeout(r, 500)); // テーブルの描画待ち
             } else {
                  console.log(`[DDelta Scraper] ⚠️ ${model.name} の「大当り一覧」が見つかりませんでした。スキップします。`);
                  continue;

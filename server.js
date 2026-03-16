@@ -38,6 +38,42 @@ let lastRealtimeFetch = null;
 let realtimeFetchStatus = 'idle'; // 'idle' | 'running' | 'error'
 let realtimeProgress = { current: 0, total: 0, modelName: '' };
 
+/** リアルタイムスクレイプ実行（HTTP GET方式 — Puppeteer不要） */
+async function runRealtimeScrape() {
+    if (realtimeFetchStatus === 'running') return;
+    realtimeFetchStatus = 'running';
+    realtimeProgress = { current: 0, total: 0, modelName: '' };
+    console.log('[Realtime] リアルタイムスクレイプ開始 (HTTP GET方式)');
+    try {
+        const { scrapeDDelta } = require('./scraper_ddelta');
+        const data = await scrapeDDelta((current, total, modelName) => {
+            realtimeProgress = { current, total, modelName };
+        });
+        if (data && data.length > 0) {
+            cachedRealtimeData = data;
+            lastRealtimeFetch = new Date().toISOString();
+            console.log(`[Realtime] ✅ ${data.length}台取得完了`);
+            // MongoDBに保存
+            try {
+                await RealtimeCache.findOneAndUpdate(
+                    { key: 'latest' },
+                    { key: 'latest', machines: data, timestamp: new Date() },
+                    { upsert: true, new: true }
+                );
+                console.log('[Realtime] MongoDBに保存完了');
+            } catch (dbErr) {
+                console.log('[Realtime] MongoDB保存失敗:', dbErr.message);
+            }
+        } else {
+            console.log('[Realtime] データ0件（サイトがデータ非公開の可能性）');
+        }
+    } catch (err) {
+        console.error('[Realtime] エラー:', err.message);
+    } finally {
+        realtimeFetchStatus = 'idle';
+    }
+}
+
 // ============================
 // API エンドポイント
 // ============================
@@ -143,19 +179,35 @@ app.get('/api/realtime', async (req, res) => {
             }
         }
 
+        // キャッシュ空 & idle なら自動スクレイプ開始
+        if (cachedRealtimeData.length === 0 && realtimeFetchStatus !== 'running') {
+            runRealtimeScrape();
+        }
+
         res.json({
             machines: cachedRealtimeData,
             timestamp: lastRealtimeFetch || null,
-            status: 'idle',
-            progress: { current: 0, total: 0, modelName: '' },
+            status: realtimeFetchStatus,
+            progress: realtimeProgress,
             message: cachedRealtimeData.length > 0 
                 ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
-                : 'データ未取得（GitHub Actionsが営業時間中に自動取得します）'
+                : realtimeFetchStatus === 'running'
+                    ? `取得中... ${realtimeProgress.current}/${realtimeProgress.total} 機種 (${realtimeProgress.modelName || '準備中'})` 
+                    : 'データ未取得'
         });
     } catch (e) {
         console.error('[API] /api/realtime エラー:', e);
         res.status(500).json({ error: e.message });
     }
+});
+
+/** リアルタイム手動取得トリガー */
+app.post('/api/realtime', async (req, res) => {
+    if (realtimeFetchStatus === 'running') {
+        return res.json({ status: 'already_running', message: 'リアルタイム取得実行中です' });
+    }
+    runRealtimeScrape();
+    res.json({ status: 'started', message: 'リアルタイム取得を開始しました' });
 });
 
 /** 激熱予測（過去履歴からの高信頼度・高設定台ランキング） */

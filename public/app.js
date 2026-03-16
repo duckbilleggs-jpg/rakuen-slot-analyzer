@@ -110,8 +110,29 @@ async function fetchRealtimeData() {
   setLoading(true);
   try {
     const res = await fetch('/api/realtime');
-    if (activeTab !== 'realtime') return; // タブが変わっていたら中断
+    if (activeTab !== 'realtime') return;
     const data = await res.json();
+
+    // runningステータスならポーリング
+    if (data.status === 'running') {
+      const prog = data.progress || {};
+      const progText = prog.total > 0 
+        ? `取得中... ${prog.current}/${prog.total} 機種 (${prog.modelName || ''})` 
+        : '取得準備中...';
+      document.getElementById('dateDisplay').textContent = `本日 (リアルタイム) | ${progText}`;
+      updateStatus('running');
+      // サマリーカードに進捗表示
+      document.getElementById('totalMachines').textContent = prog.total > 0 ? `${prog.current}/${prog.total}` : '...';
+      document.getElementById('highSettingCount').textContent = '-';
+      document.getElementById('lastUpdate').textContent = '取得中';
+      setLoading(false);
+      // 3秒後に再確認
+      setTimeout(() => {
+        if (activeTab === 'realtime') fetchRealtimeData();
+      }, 3000);
+      return;
+    }
+
     currentData.realtime = data.machines || [];
 
     // 最終更新時間を表示
@@ -120,14 +141,9 @@ async function fetchRealtimeData() {
       const timeStr = `${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')}`;
       document.getElementById('dateDisplay').textContent = `本日 (リアルタイム) | 最終更新: ${timeStr} | ${currentData.realtime.length}台`;
     } else {
-      const now = new Date();
-      const h = now.getHours();
-      if (h >= 12 && h <= 22) {
-        document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | 自動取得待ち（30分ごと更新）';
-      } else {
-        document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | 営業時間外（12:00〜22:30に自動取得）';
-      }
+      document.getElementById('dateDisplay').textContent = '本日 (リアルタイム) | データ取得ボタンを押してください';
     }
+    updateStatus('idle');
 
     // リアルタイム用の機種フィルタを更新
     const names = [...new Set(currentData.realtime.map(m => m.機種名))].sort();
@@ -142,7 +158,7 @@ async function fetchRealtimeData() {
     });
     if (names.includes(currentVal)) select.value = currentVal;
 
-    // サマリーカード更新（リアルタイムタブの場合のみ）
+    // サマリーカード更新
     document.getElementById('totalMachines').textContent = currentData.realtime.length;
     const highCount = currentData.realtime.filter(m => m.推定設定 >= 5).length;
     document.getElementById('highSettingCount').textContent = highCount;
@@ -158,27 +174,15 @@ async function fetchRealtimeData() {
     if (currentData.realtime.length > 0) {
       renderRealtimeTable();
     } else {
-      // データ0件時は明確なステータスを表示
+      // データ0件時
       document.getElementById('dataTableRealtime').style.display = 'none';
       const empty = document.getElementById('emptyState');
-      const now = new Date();
-      const h = now.getHours();
-      let msg = '';
-      if (h >= 12 && h <= 22) {
-        msg = '<div style="text-align:center;padding:40px 20px;">'
-          + '<div style="font-size:48px;margin-bottom:16px;">📡</div>'
-          + '<div style="font-size:18px;font-weight:bold;margin-bottom:8px;">データ取得準備中</div>'
-          + '<div style="color:#aaa;">GitHub Actionsが30分ごとに自動取得します</div>'
-          + '<div style="color:#888;margin-top:8px;font-size:13px;">次の取得: 毎時 :00 / :30</div>'
-          + '</div>';
-      } else {
-        msg = '<div style="text-align:center;padding:40px 20px;">'
-          + '<div style="font-size:48px;margin-bottom:16px;">🌙</div>'
-          + '<div style="font-size:18px;font-weight:bold;margin-bottom:8px;">営業時間外</div>'
-          + '<div style="color:#aaa;">リアルタイムデータは 12:00〜22:30 に自動取得されます</div>'
-          + '<div style="color:#888;margin-top:8px;font-size:13px;">過去データタブでは過去の設定判別結果を閲覧できます</div>'
-          + '</div>';
-      }
+      const msg = '<div style="text-align:center;padding:40px 20px;">'
+        + '<div style="font-size:48px;margin-bottom:16px;">📡</div>'
+        + '<div style="font-size:18px;font-weight:bold;margin-bottom:8px;">データ未取得</div>'
+        + '<div style="color:#aaa;">「データ取得」ボタンを押して取得を開始してください</div>'
+        + '<div style="color:#888;margin-top:8px;font-size:13px;">営業時間中は自動取得も実行されます</div>'
+        + '</div>';
       empty.innerHTML = msg;
       empty.style.display = 'block';
     }
@@ -440,13 +444,24 @@ async function manualScrape() {
   updateStatus('running');
 
   try {
-    await fetch('/api/scrape', { method: 'POST' });
-    // 15秒待ってからデータリロード
-    setTimeout(async () => {
-      await loadData();
-      btn.disabled = false;
-      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg> データ取得';
-    }, 15000);
+    if (activeTab === 'realtime') {
+      // リアルタイムタブ: d-deltanetから取得
+      await fetch('/api/realtime', { method: 'POST' });
+      // 3秒後にデータリロード（ポーリングがfetchRealtimeDataで継続）
+      setTimeout(async () => {
+        await fetchRealtimeData();
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg> データ取得';
+      }, 3000);
+    } else {
+      // 過去データタブ: みんレポから取得
+      await fetch('/api/scrape', { method: 'POST' });
+      setTimeout(async () => {
+        await loadData();
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg> データ取得';
+      }, 15000);
+    }
   } catch (e) {
     console.error('スクレイプエラー:', e);
     btn.disabled = false;

@@ -26,16 +26,16 @@
           <p class="subtitle" id="dateDisplay">読み込み中...</p>
         </div>
       </div>
-      <div class="header-actions">
-        <div class="status-badge" id="statusBadge">
+      <div class="header-actions" style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+        <div class="status-badge" id="statusBadge" style="white-space:nowrap;">
           <span class="status-dot"></span>
           <span id="statusText">接続中</span>
         </div>
-        <button class="btn btn-primary" id="btnScrape" onclick="manualScrape()">
+        <button class="btn btn-primary" id="btnScrape" onclick="manualScrape()" style="white-space:nowrap;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 12 12 12"/></svg>
-          データ取得
+          取得
         </button>
-        <button class="btn btn-ghost" id="btnConfig" onclick="toggleConfig()">
+        <button class="btn btn-ghost" id="btnConfig" onclick="toggleConfig()" style="white-space:nowrap;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         </button>
       </div>
@@ -100,10 +100,10 @@
   <!-- メイン -->
   <main>
     <!-- タブナビゲーション -->
-    <div class="tabs-container" style="margin-bottom: 20px; display: flex; gap: 10px; border-bottom: 2px solid #334155; padding-bottom: 10px;">
-      <button class="tab-btn active" id="tab-past" onclick="switchTab('past')" style="padding: 10px 15px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🗓️ 過去データ(みんレポ)</button>
-      <button class="tab-btn" id="tab-realtime" onclick="switchTab('realtime')" style="padding: 10px 15px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🔥 リアルタイム(本日)</button>
-      <button class="tab-btn" id="tab-forecast" onclick="switchTab('forecast')" style="padding: 10px 15px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">🌅 朝一予測(過去30日)</button>
+    <div class="tabs-container" style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid #334155; padding-bottom: 10px;">
+      <button class="tab-btn active" id="tab-past" onclick="switchTab('past')" style="padding: 8px 12px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap;">🗓️ 過去データ</button>
+      <button class="tab-btn" id="tab-realtime" onclick="switchTab('realtime')" style="padding: 8px 12px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap;">🔥 リアルタイム</button>
+      <button class="tab-btn" id="tab-forecast" onclick="switchTab('forecast')" style="padding: 8px 12px; background: #1e293b; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; white-space: nowrap;">🌅 朝一予測</button>
     </div>
 
     <!-- サマリーカード -->
@@ -127,10 +127,10 @@
     </div>
 
     <!-- フィルタ (過去データ用) -->
-    <div class="filter-bar" id="filterBarPast">
+    <div class="filter-bar" id="filterBarPast" style="flex-wrap: wrap;">
       <div class="filter-group">
         <label>ソート</label>
-        <select id="sortSelect" onchange="renderPastTable()">
+        <select id="sortSelect" onchange="renderPastTable()" style="max-width: 150px;">
           <option value="ev">期待値(円)順</option>
           <option value="setting">推定設定順</option>
           <option value="rate">出率順</option>
@@ -139,31 +139,31 @@
         </select>
       </div>
       <div class="filter-group">
-        <label>機種フィルタ</label>
-        <select id="machineFilter" onchange="renderPastTable()">
+        <label>機種</label>
+        <select id="machineFilter" onchange="renderPastTable()" style="max-width: 180px;">
           <option value="all">全機種</option>
         </select>
       </div>
     </div>
 
     <!-- フィルタ (リアルタイム用) -->
-    <div class="filter-bar" id="filterBarRealtime" style="display:none">
+    <div class="filter-bar" id="filterBarRealtime" style="display:none; flex-wrap: wrap;">
       <div class="filter-group">
-        <label>設定フィルタ</label>
-        <select id="realtimeSettingFilter" onchange="renderRealtimeTable()">
+        <label>設定</label>
+        <select id="realtimeSettingFilter" onchange="renderRealtimeTable()" style="max-width: 140px;">
           <option value="all">全台表示</option>
           <option value="high">設定5/6のみ</option>
         </select>
       </div>
       <div class="filter-group">
-        <label>機種フィルタ</label>
-        <select id="realtimeMachineFilter" onchange="renderRealtimeTable()">
+        <label>機種</label>
+        <select id="realtimeMachineFilter" onchange="renderRealtimeTable()" style="max-width: 180px;">
           <option value="all">全機種</option>
         </select>
       </div>
       <div class="filter-group">
         <label>ソート</label>
-        <select id="realtimeSortSelect" onchange="renderRealtimeTable()">
+        <select id="realtimeSortSelect" onchange="renderRealtimeTable()" style="max-width: 150px;">
           <option value="ev">期待値(円)順</option>
           <option value="setting">推定設定順</option>
           <option value="prob">合算確率順</option>
@@ -190,7 +190,6 @@
             <th class="th-num">出率</th>
             <th class="th-num">差枚</th>
             <th class="th-num">G数</th>
-            <th class="th-num highlight-col">期待差枚</th>
             <th class="th-num highlight-col">期待値(円)</th>
           </tr>
         </thead>
@@ -220,13 +219,14 @@
       <table id="dataTableForecast" class="data-table" style="display:none">
         <thead>
           <tr>
-            <th class="th-trust" style="width:120px">おすすめ度</th>
+            <th class="th-trust" style="width:100px">おすすめ度</th>
             <th>機種名</th>
             <th>台番</th>
-            <th class="th-num" style="color:#ef4444; font-weight:bold;">高設定回数</th>
+            <th class="th-num" style="color:#ef4444; font-weight:bold;">⑥回数</th>
+            <th class="th-num" style="color:#f59e0b; font-weight:bold;">⑤回数</th>
+            <th class="th-num">合計</th>
             <th class="th-num">平均出率</th>
-            <th class="th-num">平均差枚</th>
-            <th>最終確認日</th>
+            <th>最終確認</th>
           </tr>
         </thead>
         <tbody id="tableBodyForecast"></tbody>

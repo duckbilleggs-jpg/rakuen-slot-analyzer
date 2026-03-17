@@ -23,6 +23,23 @@ function loadConfig() {
   return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 }
 
+/** 46円スロット台番号ホワイトリストを読み込み（5円スロット除外用） */
+function loadSlot46Filter() {
+  try {
+    const nums = JSON.parse(fs.readFileSync(path.join(__dirname, 'slot46_numbers.json'), 'utf8'));
+    return new Set(nums);
+  } catch (e) {
+    return null; // ファイルなし → フィルタなし
+  }
+}
+
+/** 台データから5円スロットを除外 */
+function filter46Only(machines) {
+  const s46 = loadSlot46Filter();
+  if (!s46) return machines; // ファイルなしなら全件返す
+  return machines.filter(m => s46.has(m.台番) || s46.has(parseInt(m.台番)));
+}
+
 // 静的ファイル配信
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -110,26 +127,41 @@ app.get('/health', async (req, res) => {
   res.json({ status: 'ok', lastScrape: lastScrapeTime, scrapeStatus, scrapingDisabled: SCRAPING_DISABLED });
 });
 
-/** 設定5以上の高設定台一覧 */
+/** 設定5以上の高設定台一覧 (dateパラメータで過去日付指定可能) */
 app.get('/api/high-setting', async (req, res) => {
   try {
-    if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
-      console.log('[Auto] データが古いため自動スクレイプを開始(API Request)');
-      runScrape();
+    let data, dateKey;
+    const requestedDate = req.query.date; // YYYY-MM-DD
+
+    if (requestedDate) {
+      // 指定日のデータを取得
+      data = await loadDayData(requestedDate);
+      dateKey = requestedDate;
+    } else {
+      // デフォルト: 最新データ
+      if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
+        console.log('[Auto] データが古いため自動スクレイプを開始(API Request)');
+        runScrape();
+      }
+      const latest = await getLatestData();
+      data = latest.data;
+      dateKey = latest.dateKey;
     }
-    const { data } = await getLatestData();
+
     if (!data || !data.machines) {
-      return res.json({ machines: [], lastScrape: lastScrapeTime, scrapeStatus, message: 'データがありません。手動取得または定期スクレイプをお待ちください。' });
+      return res.json({ machines: [], lastScrape: lastScrapeTime, scrapeStatus, dateKey, message: 'データがありません。' });
     }
     const config = loadConfig();
     const now = lastScrapeTime ? new Date(lastScrapeTime) : new Date();
-    const highSetting = analyzeHighSetting(data.machines, now, data.id);
+    const filtered = filter46Only(data.machines);
+    const highSetting = analyzeHighSetting(filtered, now, data.id);
     res.json({
       machines: highSetting,
       lastScrape: lastScrapeTime,
       closingTime: `${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`,
       totalMachines: data.machines.length,
       date: data.date,
+      dateKey: dateKey,
       reportId: data.id
     });
   } catch (e) {
@@ -145,7 +177,7 @@ app.get('/api/all', async (req, res) => {
       return res.json({ machines: [], lastScrape: lastScrapeTime, message: 'データがありません' });
     }
     res.json({
-      machines: data.machines,
+      machines: filter46Only(data.machines),
       lastScrape: lastScrapeTime,
       totalMachines: data.machines.length,
       date: data.date,
@@ -202,68 +234,89 @@ app.post('/api/realtime', async (req, res) => {
     res.json({ status: 'info', message: 'リアルタイムデータはローカルPCのCLIスクリプトから取得します（d-deltanetがクラウドIPを制限しているため）' });
 });
 
-/** 激熱予測（過去履歴からの高信頼度・高設定台ランキング） */
+/** 激熱予測（機種別設定⑤⑥判別ベース） */
 app.get('/api/forecast', async (req, res) => {
     try {
         console.log('[API] /api/forecast リクエスト受信');
         const { Machine } = require('./database');
+        const { loadDB, getDefaultSpecs } = require('./machine_lookup');
         
-        // 直近30日間を対象とする
+        // 46円スロット台番号ホワイトリスト読み込み（なければフィルタなし）
+        let slot46Numbers = null;
+        try {
+            slot46Numbers = JSON.parse(fs.readFileSync(path.join(__dirname, 'slot46_numbers.json'), 'utf8'));
+        } catch (e) { /* ファイルなし → フィルタなし */ }
+        
+        // 過去30日間の全データを取得（G数3000以上で信頼度確保）
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        // "YYYY-MM-DD"の形式に変換した文字列で比較
         const dateLimit = thirtyDaysAgo.toISOString().split('T')[0];
 
-        // 過去の取得ログから「出率が設定5の基準(約108%等)を超えている」＆「稼働が5000G以上」の台を集計する
-        // ※正確な設定値(1-6)は機種毎のspecsによって動的に変わるため、ここでは「出率108%以上、差枚+1500枚以上」等の基礎的な絞り込みから
-        // MongoDBの集計フレームワーク(Aggregation)を利用して「どの台番が多く高設定の基準を満たしたか」をカウントする。
-        const pipeline = [
-            {
-                // 条件1: 過去30日以内のデータ
-                // 条件2: 5000G以上回っている (信頼度が高い)
-                // 条件3: 出率107.5%以上 (概ね設定4後半〜5のボーダー)
-                $match: {
-                    dateKey: { $gte: dateLimit },
-                    G数: { $gte: 4000 },
-                    出率: { $gte: 107.5 }
-                }
-            },
-            {
-                // 台番・機種名ごとにグルーピングして出現回数をカウント
-                $group: {
-                    _id: { 機種名: "$機種名", 台番: "$台番" },
-                    高設定回数: { $sum: 1 },
-                    平均差枚: { $avg: "$差枚" },
-                    平均出率: { $avg: "$出率" },
-                    直近確認日: { $max: "$dateKey" }
-                }
-            },
-            {
-                // 高設定投入回数が多い順、同数なら平均差枚が多い順にソート
-                $sort: { 高設定回数: -1, 平均差枚: -1 }
-            },
-            {
-                $limit: 30 // 上位30台を抽出
+        let records = await Machine.find({
+            dateKey: { $gte: dateLimit },
+            G数: { $gte: 3000 }
+        }).lean();
+        
+        // 46円スロットのみに絞り込み（台番号ホワイトリストがある場合）
+        if (slot46Numbers && slot46Numbers.length > 0) {
+            const numSet = new Set(slot46Numbers);
+            records = records.filter(r => numSet.has(r.台番));
+        }
+
+        // 機種別理論出率DBを使って各レコードの設定を判定
+        const db = loadDB();
+        const machineStats = {}; // { "機種名_台番": { s6回数, s5回数, ... } }
+        
+        for (const r of records) {
+            const specs = db[r.機種名] || getDefaultSpecs();
+            const key = `${r.機種名}_${r.台番}`;
+            
+            if (!machineStats[key]) {
+                machineStats[key] = {
+                    機種名: r.機種名, 台番: r.台番,
+                    s6回数: 0, s5回数: 0, 総日数: 0,
+                    出率合計: 0, 差枚合計: 0, 直近確認日: ''
+                };
             }
-        ];
+            const stat = machineStats[key];
+            stat.総日数++;
+            stat.出率合計 += (r.出率 || 0);
+            stat.差枚合計 += (r.差枚 || 0);
+            if (r.dateKey > stat.直近確認日) stat.直近確認日 = r.dateKey;
+            
+            // 機種ごとの理論出率で設定判定
+            if (specs.s6 && r.出率 >= specs.s6) {
+                stat.s6回数++;
+            } else if (specs.s5 && r.出率 >= specs.s5) {
+                stat.s5回数++;
+            }
+        }
 
-        const forecastResults = await Machine.aggregate(pipeline);
-
-        // クライアント側で扱いやすいように整形
-        const formatted = forecastResults.map(r => ({
-            機種名: r._id.機種名,
-            台番: r._id.台番,
-            高設定回数: r.高設定回数,
-            平均差枚: Math.round(r.平均差枚),
-            平均出率: parseFloat(r.平均出率.toFixed(1)),
-            直近確認日: r.直近確認日,
-            おすすめ度: r.高設定回数 >= 3 ? '★★★ 激熱' : (r.高設定回数 >= 2 ? '★★☆ チャンス' : '★☆☆ 狙い目')
-        }));
+        // 結果整形＆ソート
+        const formatted = Object.values(machineStats)
+            .filter(s => (s.s6回数 + s.s5回数) >= 1) // ⑤⑥が1回以上
+            .map(s => ({
+                機種名: s.機種名,
+                台番: s.台番,
+                設定6回数: s.s6回数,
+                設定5回数: s.s5回数,
+                高設定合計: s.s6回数 + s.s5回数,
+                総日数: s.総日数,
+                平均出率: parseFloat((s.出率合計 / s.総日数).toFixed(1)),
+                直近確認日: s.直近確認日,
+                おすすめ度: s.s6回数 >= 3 ? '★★★ 激熱'
+                    : (s.s6回数 + s.s5回数) >= 3 ? '★★☆ チャンス'
+                    : '★☆☆ 狙い目'
+            }))
+            // 設定⑥回数 降順 → ⑤⑥合計 降順 → 平均出率 降順
+            .sort((a, b) => b.設定6回数 - a.設定6回数 || b.高設定合計 - a.高設定合計 || b.平均出率 - a.平均出率)
+            .slice(0, 50);
 
         res.json({
             machines: formatted,
             targetPeriod: '過去30日間',
-            criteria: '稼働4000G以上 かつ 出率107.5%以上',
+            criteria: '機種別理論出率に基づく設定⑤⑥判定',
+            is46Only: !!slot46Numbers,
             timestamp: new Date().toISOString()
         });
     } catch (e) {

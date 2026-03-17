@@ -67,16 +67,32 @@ function switchTab(tabId) {
 // ============================
 // データ取得＆表示 (過去/みんレポ)
 // ============================
-async function fetchPastData() {
+let pastSelectedDate = ''; // 選択中の日付
+
+async function fetchPastData(dateKey) {
   setLoading(true);
   try {
-    const res = await fetch('/api/high-setting');
-    if (activeTab !== 'past') return; // タブが変わっていたら中断
+    const url = dateKey ? `/api/high-setting?date=${dateKey}` : '/api/high-setting';
+    const res = await fetch(url);
+    if (activeTab !== 'past') return;
     const data = await res.json();
     currentData.past = data.machines || [];
+    pastSelectedDate = data.dateKey || '';
 
-    // ヘッダーの日付表示を更新（サマリーバーは非表示のまま）
-    document.getElementById('dateDisplay').textContent = data.date || '-';
+    // 日付・台数・設定5以上台数を表示
+    const dateStr = data.date || pastSelectedDate || '-';
+    const s5count = currentData.past.filter(m => m.推定設定 >= 5).length;
+    document.getElementById('dateDisplay').innerHTML =
+      `<span id="pastDateLabel" style="cursor:pointer; border-bottom:2px dashed rgba(255,255,255,0.4); padding-bottom:2px;" onclick="showPastDatePicker()">📅 ${dateStr}</span>` +
+      ` | ${currentData.past.length}台 | 設定5以上: <strong style="color:#3b82f6">${s5count}台</strong>`;
+    // 日付ピッカー (hidden input)
+    if (!document.getElementById('pastDateInput')) {
+      const inp = document.createElement('input');
+      inp.type = 'date'; inp.id = 'pastDateInput';
+      inp.style.cssText = 'position:absolute; opacity:0; pointer-events:none;';
+      inp.addEventListener('change', () => { if (inp.value) fetchPastData(inp.value); });
+      document.getElementById('dateDisplay').appendChild(inp);
+    }
 
     if (data.scrapeStatus === 'running') {
       updateStatus('running');
@@ -279,7 +295,7 @@ function renderPastTable() {
         const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
         const confClass = m.信頼度 >= 80 ? 'confidence-high' : m.信頼度 >= 50 ? 'confidence-mid' : 'confidence-low';
         const samaiClass = m.差枚 >= 0 ? 'td-positive' : 'td-negative';
-        const evClass = m.期待値円 >= 0 ? 'td-positive' : 'td-negative';
+        const evClass = (m.期待値円 || 0) >= 0 ? 'td-positive' : 'td-negative';
 
         return `
         <tr class="${settingClass}">
@@ -292,7 +308,6 @@ function renderPastTable() {
             <td class="td-num">${m.出率.toFixed(1)}%</td>
             <td class="td-num ${samaiClass}">${m.差枚.toLocaleString()}</td>
             <td class="td-num">${m.G数.toLocaleString()}</td>
-            <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
             <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
         </tr>
         `;
@@ -397,22 +412,35 @@ function renderForecastTable() {
     tbody.innerHTML = currentData.forecast.map((m, index) => {
         const rankClass = index < 3 ? 'setting-6' : (index < 10 ? 'setting-5' : '');
         let recClass = '';
-        if (m.おすすめ度.includes('★★★')) recClass = 'confidence-high';
-        else if (m.おすすめ度.includes('★★☆')) recClass = 'confidence-mid';
+        if (m.おすすめ度 && m.おすすめ度.includes('★★★')) recClass = 'confidence-high';
+        else if (m.おすすめ度 && m.おすすめ度.includes('★★☆')) recClass = 'confidence-mid';
         else recClass = 'confidence-low';
 
         return `
         <tr class="${rankClass}">
-            <td><span class="confidence ${recClass}">${m.おすすめ度}</span></td>
+            <td><span class="confidence ${recClass}">${m.おすすめ度 || '-'}</span></td>
             <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
             <td><strong>${m.台番}</strong></td>
-            <td class="td-num" style="color:#ef4444; font-weight:bold; font-size:1.1em;">${m.高設定回数} 回</td>
-            <td class="td-num">${m.平均出率}%</td>
-            <td class="td-num ${m.平均差枚 >= 0 ? 'td-positive' : 'td-negative'}">${m.平均差枚.toLocaleString()}</td>
-            <td class="td-num" style="color:var(--text-secondary); font-size:0.9em;">${m.直近確認日}</td>
+            <td class="td-num" style="color:#ef4444; font-weight:bold; font-size:1.1em;">${m.設定6回数 || 0}</td>
+            <td class="td-num" style="color:#f59e0b; font-weight:bold;">${m.設定5回数 || 0}</td>
+            <td class="td-num" style="font-weight:bold;">${m.高設定合計 || 0}</td>
+            <td class="td-num">${m.平均出率 || '-'}%</td>
+            <td class="td-num" style="color:var(--text-secondary); font-size:0.9em;">${m.直近確認日 || '-'}</td>
         </tr>
         `;
     }).join('');
+}
+
+// ============================
+// 日付選択 (過去データ)
+// ============================
+function showPastDatePicker() {
+    const inp = document.getElementById('pastDateInput');
+    if (inp) {
+        inp.style.pointerEvents = 'auto';
+        inp.showPicker ? inp.showPicker() : inp.click();
+        setTimeout(() => { inp.style.pointerEvents = 'none'; }, 100);
+    }
 }
 
 // ============================

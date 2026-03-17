@@ -297,10 +297,14 @@ async function scrapeDDelta(onProgress) {
     
     // 46円スロット機種名リストをファイルに保存（5円スロット除外用）
     const modelNames = [...new Set(models.map(m => m.name))].sort();
-    const fs = require('fs');
-    const path = require('path');
-    fs.writeFileSync(path.join(__dirname, 'slot46_models.json'), JSON.stringify(modelNames, null, 2), 'utf8');
-    console.log(`[DDelta] 46円スロット機種リスト保存: ${modelNames.length}機種`);
+    try {
+        const fs = require('fs');
+        const path = require('path');
+        fs.writeFileSync(path.join(__dirname, 'slot46_models.json'), JSON.stringify(modelNames, null, 2), 'utf8');
+        console.log(`[DDelta] 46円スロット機種リスト保存: ${modelNames.length}機種`);
+    } catch (e) {
+        console.log(`[DDelta] 機種リストファイル保存スキップ（CI環境）: ${modelNames.length}機種`);
+    }
     
     console.log(`[DDelta] 合計 ${models.length} 機種を発見。データ取得を開始...\n`);
     
@@ -328,8 +332,12 @@ async function scrapeDDelta(onProgress) {
     
     // 46円スロットの台番号リストを保存（5円スロット除外用ホワイトリスト）
     const slot46Numbers = [...new Set(results.map(m => m.台番))].sort((a, b) => a - b);
-    fs.writeFileSync(path.join(__dirname, 'slot46_numbers.json'), JSON.stringify(slot46Numbers, null, 2), 'utf8');
-    console.log(`[DDelta] 46円スロット台番号リスト保存: ${slot46Numbers.length}台`);
+    try {
+        fs.writeFileSync(path.join(__dirname, 'slot46_numbers.json'), JSON.stringify(slot46Numbers, null, 2), 'utf8');
+        console.log(`[DDelta] 46円スロット台番号リスト保存: ${slot46Numbers.length}台`);
+    } catch (e) {
+        console.log(`[DDelta] 台番号リストファイル保存スキップ（CI環境）: ${slot46Numbers.length}台`);
+    }
     
     console.log(`\n[DDelta] 合計 ${results.length} 台の生データを取得。分析開始...`);
     return analyzeRealtimeData(results);

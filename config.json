@@ -9,9 +9,9 @@
   },
   "realtimeSchedule": {
     "enabled": true,
-    "startHour": 18,
+    "startHour": 9,
     "startMinute": 0,
-    "endHour": 23,
+    "endHour": 22,
     "endMinute": 30,
     "intervalMinutes": 30
   },

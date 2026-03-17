@@ -55,41 +55,7 @@ let lastRealtimeFetch = null;
 let realtimeFetchStatus = 'idle'; // 'idle' | 'running' | 'error'
 let realtimeProgress = { current: 0, total: 0, modelName: '' };
 
-/** リアルタイムスクレイプ実行（HTTP GET方式 — Puppeteer不要） */
-async function runRealtimeScrape() {
-    if (realtimeFetchStatus === 'running') return;
-    realtimeFetchStatus = 'running';
-    realtimeProgress = { current: 0, total: 0, modelName: '' };
-    console.log('[Realtime] リアルタイムスクレイプ開始 (HTTP GET方式)');
-    try {
-        const { scrapeDDelta } = require('./scraper_ddelta');
-        const data = await scrapeDDelta((current, total, modelName) => {
-            realtimeProgress = { current, total, modelName };
-        });
-        if (data && data.length > 0) {
-            cachedRealtimeData = data;
-            lastRealtimeFetch = new Date().toISOString();
-            console.log(`[Realtime] ✅ ${data.length}台取得完了`);
-            // MongoDBに保存
-            try {
-                await RealtimeCache.findOneAndUpdate(
-                    { key: 'latest' },
-                    { key: 'latest', machines: data, timestamp: new Date() },
-                    { upsert: true, new: true }
-                );
-                console.log('[Realtime] MongoDBに保存完了');
-            } catch (dbErr) {
-                console.log('[Realtime] MongoDB保存失敗:', dbErr.message);
-            }
-        } else {
-            console.log('[Realtime] データ0件（サイトがデータ非公開の可能性）');
-        }
-    } catch (err) {
-        console.error('[Realtime] エラー:', err.message);
-    } finally {
-        realtimeFetchStatus = 'idle';
-    }
-}
+
 
 // ============================
 // API エンドポイント
@@ -211,17 +177,19 @@ app.get('/api/realtime', async (req, res) => {
             }
         }
 
-        // d-deltanetがクラウドIPを403で拒否するため、サーバー直接取得は無効化
-        // ローカルPCのCLIスクリプト(scrape_realtime_cli.js)で取得→MongoDB保存する方式
+        // Renderクラウド環境ではd-deltanetが403を返すためGitHub Actionsで取得
+        // ローカル環境では手動ボタン or cronジョブで取得可能
 
         res.json({
             machines: cachedRealtimeData,
             timestamp: lastRealtimeFetch || null,
-            status: 'idle',
-            progress: { current: 0, total: 0, modelName: '' },
-            message: cachedRealtimeData.length > 0 
-                ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
-                : 'データ未取得（ローカルPCからCLIで取得してください）'
+            status: realtimeFetchStatus,
+            progress: realtimeProgress,
+            message: realtimeFetchStatus === 'running' 
+                ? `スクレイピング中... ${realtimeProgress.current}/${realtimeProgress.total} ${realtimeProgress.modelName}`
+                : cachedRealtimeData.length > 0 
+                    ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
+                    : 'データ未取得'
         });
     } catch (e) {
         console.error('[API] /api/realtime エラー:', e);
@@ -229,9 +197,9 @@ app.get('/api/realtime', async (req, res) => {
     }
 });
 
-/** リアルタイム手動取得トリガー（ローカルCLIで実行するため、サーバーでは実行しない） */
+/** リアルタイム手動取得トリガー（スクレイピングはスケジュール実行のみ） */
 app.post('/api/realtime', async (req, res) => {
-    res.json({ status: 'info', message: 'リアルタイムデータはローカルPCのCLIスクリプトから取得します（d-deltanetがクラウドIPを制限しているため）' });
+    res.json({ status: 'info', message: 'リアルタイムデータは設定画面のスケジュールに従って自動取得されます' });
 });
 
 /** 激熱予測（機種別設定⑤⑥判別ベース） */
@@ -558,9 +526,40 @@ function setupCronJob() {
 }
 
 function setupRealtimeCronJob() {
-  // リアルタイムデータ取得はGitHub Actionsが担当
   if (cronJobRealtime) { cronJobRealtime.stop(); cronJobRealtime = null; }
-  console.log('[Server] リアルタイム定期取得: GitHub Actions管轄のためスキップ');
+
+  const config = loadConfig();
+  const rt = config.realtimeSchedule;
+
+  if (!rt || !rt.enabled) {
+    console.log('[Server] リアルタイム定期取得: 無効');
+    return;
+  }
+
+  const interval = rt.intervalMinutes || 30;
+  const startH = rt.startHour;
+  const endH = rt.endHour;
+
+  const minutes = [];
+  for (let m = (rt.startMinute || 0); m < 60; m += interval) {
+    minutes.push(m);
+  }
+  const minuteExpr = minutes.join(',');
+  const hourExpr = `${startH}-${endH}`;
+  const cronExpr = `${minuteExpr} ${hourExpr} * * *`;
+
+  console.log(`[Server] リアルタイム定期取得設定: ${cronExpr} (${startH}:${String(rt.startMinute || 0).padStart(2, '0')}〜${endH}:${String(rt.endMinute || 0).padStart(2, '0')}, ${interval}分間隔)`);
+
+  cronJobRealtime = cron.schedule(cronExpr, () => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const endMinutes = endH * 60 + (rt.endMinute || 0);
+
+    if (currentMinutes <= endMinutes) {
+      console.log(`[Cron] リアルタイムスクレイプ発動: ${now.toLocaleString('ja-JP')}`);
+      runRealtimeScrape();
+    }
+  });
 }
 
 // ============================

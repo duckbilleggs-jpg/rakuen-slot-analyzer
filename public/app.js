@@ -662,10 +662,13 @@ async function loadConfigUI() {
     document.getElementById('cfgEndH').value = cfg.schedule.endHour;
     document.getElementById('cfgEndM').value = cfg.schedule.endMinute;
     
-    // リアルタイム取得用の開始時間 (設定がない場合はデフォルト値を使用)
+    // リアルタイム取得用の設定
     if (cfg.realtimeSchedule) {
         document.getElementById('cfgRtStartH').value = cfg.realtimeSchedule.startHour;
         document.getElementById('cfgRtStartM').value = cfg.realtimeSchedule.startMinute;
+        document.getElementById('cfgRtEndH').value = cfg.realtimeSchedule.endHour || 22;
+        document.getElementById('cfgRtEndM').value = cfg.realtimeSchedule.endMinute || 30;
+        document.getElementById('cfgRtInterval').value = cfg.realtimeSchedule.intervalMinutes || 30;
     }
 
     document.getElementById('cfgInterval').value = cfg.schedule.intervalMinutes;
@@ -676,8 +679,9 @@ async function loadConfigUI() {
 
     // フッタースケジュール表示
     if (cfg.schedule.enabled) {
+      const rtInfo = cfg.realtimeSchedule ? ` | RT: ${cfg.realtimeSchedule.startHour}:${String(cfg.realtimeSchedule.startMinute || 0).padStart(2, '0')}〜${cfg.realtimeSchedule.endHour || 22}:${String(cfg.realtimeSchedule.endMinute || 30).padStart(2, '0')} / ${cfg.realtimeSchedule.intervalMinutes || 30}分` : '';
       document.getElementById('footerSchedule').textContent =
-        `${cfg.schedule.startHour}:${String(cfg.schedule.startMinute).padStart(2, '0')}〜${cfg.schedule.endHour}:${String(cfg.schedule.endMinute).padStart(2, '0')} / ${cfg.schedule.intervalMinutes}分間隔`;
+        `みんレポ: ${cfg.schedule.startHour}:${String(cfg.schedule.startMinute).padStart(2, '0')}〜${cfg.schedule.endHour}:${String(cfg.schedule.endMinute).padStart(2, '0')} / ${cfg.schedule.intervalMinutes}分${rtInfo}`;
     } else {
       document.getElementById('footerSchedule').textContent = '無効';
     }
@@ -697,12 +701,12 @@ async function saveConfig() {
       intervalMinutes: parseInt(document.getElementById('cfgInterval').value)
     },
     realtimeSchedule: {
-      enabled: document.getElementById('cfgEnabled').checked, // 一旦全体の有効/無効フラグと連動
+      enabled: document.getElementById('cfgEnabled').checked,
       startHour: parseInt(document.getElementById('cfgRtStartH').value),
       startMinute: parseInt(document.getElementById('cfgRtStartM').value),
-      endHour: 23, // 基本的に夜まで
-      endMinute: 30,
-      intervalMinutes: parseInt(document.getElementById('cfgInterval').value) // 共通インターバル
+      endHour: parseInt(document.getElementById('cfgRtEndH').value),
+      endMinute: parseInt(document.getElementById('cfgRtEndM').value),
+      intervalMinutes: parseInt(document.getElementById('cfgRtInterval').value)
     },
     closingTime: {
       hour: parseInt(document.getElementById('cfgCloseH').value),

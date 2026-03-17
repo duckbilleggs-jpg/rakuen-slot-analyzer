@@ -192,14 +192,39 @@ async function fetchRealtimeData() {
 // ============================
 // データ取得＆表示 (朝一予測)
 // ============================
+let forecastStartDate = '';
+let forecastEndDate = '';
+
 async function fetchForecastData() {
   setLoading(true);
-  document.getElementById('dateDisplay').textContent = '朝一推奨 (高信頼度ランキング)';
   try {
-    const res = await fetch('/api/forecast');
-    if (activeTab !== 'forecast') return; // タブが変わっていたら中断
+    let url = '/api/forecast';
+    const params = [];
+    if (forecastStartDate) params.push(`startDate=${forecastStartDate}`);
+    if (forecastEndDate) params.push(`endDate=${forecastEndDate}`);
+    if (params.length) url += '?' + params.join('&');
+
+    const res = await fetch(url);
+    if (activeTab !== 'forecast') return;
     const data = await res.json();
     currentData.forecast = data.machines || [];
+
+    // 期間表示
+    const period = data.targetPeriod || '過去30日';
+    forecastStartDate = data.startDate || forecastStartDate;
+    forecastEndDate = data.endDate || forecastEndDate;
+    document.getElementById('dateDisplay').innerHTML =
+      `朝一推奨 | <span id="forecastPeriodLabel" style="cursor:pointer; border-bottom:2px dashed rgba(255,255,255,0.4);" onclick="showForecastDatePicker()">📅 ${period}</span>` +
+      ` | ${currentData.forecast.length}台`;
+
+    // 期間選択用hidden input
+    if (!document.getElementById('forecastStartInput')) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:none;';
+      wrap.innerHTML = '<input type="date" id="forecastStartInput"><input type="date" id="forecastEndInput">';
+      document.body.appendChild(wrap);
+    }
+
     setLoading(false);
     renderForecastTable();
   } catch (e) {
@@ -344,10 +369,7 @@ function renderRealtimeTable() {
         case 'games': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
     }
 
-    // 全機種表示時はTop100に制限（機種選択時は全台表示）
-    if (machineFilter === 'all' && filtered.length > 100) {
-        filtered = filtered.slice(0, 100);
-    }
+    // 全台表示（制限なし）
 
     if (filtered.length === 0) {
         table.style.display = 'none';
@@ -417,7 +439,8 @@ function renderForecastTable() {
         else recClass = 'confidence-low';
 
         return `
-        <tr class="${rankClass}">
+        <tr class="${rankClass}" style="cursor:pointer;" onclick="showMachineDetail('${m.台番}', '${m.機種名.replace(/'/g, "\\'")}')"
+            title="クリックで詳細表示">
             <td><span class="confidence ${recClass}">${m.おすすめ度 || '-'}</span></td>
             <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
             <td><strong>${m.台番}</strong></td>
@@ -430,6 +453,127 @@ function renderForecastTable() {
         `;
     }).join('');
 }
+
+// ============================
+// 朝一予測: 期間選択
+// ============================
+function showForecastDatePicker() {
+    // 簡易ダイアログで期間選択
+    const modal = document.createElement('div');
+    modal.id = 'forecastDateModal';
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:24px; width:320px; max-width:90vw;">
+            <h3 style="margin-bottom:16px; font-size:16px;">📅 期間指定</h3>
+            <div style="margin-bottom:12px;">
+                <label style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">開始日</label>
+                <input type="date" id="fDateStart" value="${forecastStartDate}" style="width:100%; padding:8px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:14px;">
+            </div>
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">終了日</label>
+                <input type="date" id="fDateEnd" value="${forecastEndDate}" style="width:100%; padding:8px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); font-size:14px;">
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button onclick="document.getElementById('forecastDateModal').remove()" style="padding:8px 16px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); cursor:pointer;">キャンセル</button>
+                <button onclick="applyForecastDate()" style="padding:8px 16px; background:var(--accent); border:none; border-radius:6px; color:white; cursor:pointer; font-weight:bold;">適用</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
+function applyForecastDate() {
+    forecastStartDate = document.getElementById('fDateStart').value;
+    forecastEndDate = document.getElementById('fDateEnd').value;
+    document.getElementById('forecastDateModal').remove();
+    fetchForecastData();
+}
+
+// ============================
+// 朝一予測: 台番詳細モーダル
+// ============================
+async function showMachineDetail(machineNo, machineName) {
+    const modal = document.createElement('div');
+    modal.id = 'machineDetailModal';
+    modal.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:1000; display:flex; align-items:center; justify-content:center;';
+    modal.innerHTML = `
+        <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:24px; width:500px; max-width:95vw; max-height:80vh; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h3 style="font-size:16px;">📊 台番 ${machineNo} 詳細 (${machineName})</h3>
+                <button onclick="document.getElementById('machineDetailModal').remove()" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:20px;">✕</button>
+            </div>
+            <div id="machineDetailContent" style="text-align:center; padding:20px; color:var(--text-secondary);">
+                <div class="spinner" style="margin:0 auto 8px;"></div>
+                読み込み中...
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    try {
+        const params = [`machineNo=${machineNo}`];
+        if (forecastStartDate) params.push(`startDate=${forecastStartDate}`);
+        if (forecastEndDate) params.push(`endDate=${forecastEndDate}`);
+        const res = await fetch(`/api/machine-history?${params.join('&')}`);
+        const data = await res.json();
+
+        if (!data.history || data.history.length === 0) {
+            document.getElementById('machineDetailContent').innerHTML = '<p>指定期間のデータがありません</p>';
+            return;
+        }
+
+        let html = `
+            <div style="display:flex; gap:16px; margin-bottom:16px; justify-content:center;">
+                <div style="text-align:center; padding:12px 20px; background:var(--bg-secondary); border-radius:8px;">
+                    <div style="font-size:24px; font-weight:bold; color:#ef4444;">${data.s6count}</div>
+                    <div style="font-size:11px; color:var(--text-secondary);">⑥回数</div>
+                </div>
+                <div style="text-align:center; padding:12px 20px; background:var(--bg-secondary); border-radius:8px;">
+                    <div style="font-size:24px; font-weight:bold; color:#f59e0b;">${data.s5count}</div>
+                    <div style="font-size:11px; color:var(--text-secondary);">⑤回数</div>
+                </div>
+                <div style="text-align:center; padding:12px 20px; background:var(--bg-secondary); border-radius:8px;">
+                    <div style="font-size:24px; font-weight:bold; color:var(--accent);">${data.history.length}</div>
+                    <div style="font-size:11px; color:var(--text-secondary);">総日数</div>
+                </div>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:var(--bg-secondary);">
+                        <th style="padding:8px; text-align:left; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:11px;">日付</th>
+                        <th style="padding:8px; text-align:center; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:11px;">設定</th>
+                        <th style="padding:8px; text-align:right; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:11px;">出率</th>
+                        <th style="padding:8px; text-align:right; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:11px;">差枚</th>
+                        <th style="padding:8px; text-align:right; border-bottom:1px solid var(--border); color:var(--text-secondary); font-size:11px;">G数</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        for (const h of data.history) {
+            const bgColor = h.推定設定 === '⑥' ? 'rgba(251,191,36,0.15)'
+                         : h.推定設定 === '⑤' ? 'rgba(99,102,241,0.12)' : 'transparent';
+            const settingColor = h.推定設定 === '⑥' ? '#fbbf24'
+                              : h.推定設定 === '⑤' ? '#818cf8' : 'var(--text-muted)';
+            const samaiColor = (h.差枚 || 0) >= 0 ? 'var(--green)' : 'var(--red)';
+            html += `
+                <tr style="background:${bgColor}; border-bottom:1px solid rgba(46,51,72,0.3);">
+                    <td style="padding:8px;">${h.日付}</td>
+                    <td style="padding:8px; text-align:center; font-weight:bold; color:${settingColor}; font-size:1.1em;">${h.推定設定}</td>
+                    <td style="padding:8px; text-align:right;">${h.出率 ? h.出率.toFixed(1) + '%' : '-'}</td>
+                    <td style="padding:8px; text-align:right; color:${samaiColor};">${h.差枚 ? h.差枚.toLocaleString() : '-'}</td>
+                    <td style="padding:8px; text-align:right;">${h.G数 ? h.G数.toLocaleString() : '-'}</td>
+                </tr>
+            `;
+        }
+        html += '</tbody></table>';
+        document.getElementById('machineDetailContent').innerHTML = html;
+    } catch (e) {
+        document.getElementById('machineDetailContent').innerHTML = `<p style="color:var(--red);">エラー: ${e.message}</p>`;
+    }
+}
+
 
 // ============================
 // 日付選択 (過去データ)

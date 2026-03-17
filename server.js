@@ -247,13 +247,29 @@ app.get('/api/forecast', async (req, res) => {
             slot46Numbers = JSON.parse(fs.readFileSync(path.join(__dirname, 'slot46_numbers.json'), 'utf8'));
         } catch (e) { /* ファイルなし → フィルタなし */ }
         
-        // 過去30日間の全データを取得（G数3000以上で信頼度確保）
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const dateLimit = thirtyDaysAgo.toISOString().split('T')[0];
+        // 期間パラメータ対応（デフォルト: 過去30日）
+        const startDate = req.query.startDate;
+        const endDate = req.query.endDate;
+        let dateLimit, dateEnd;
+        
+        if (startDate) {
+            dateLimit = startDate;
+        } else {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            dateLimit = thirtyDaysAgo.toISOString().split('T')[0];
+        }
+        
+        if (endDate) {
+            dateEnd = endDate;
+        } else {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            dateEnd = yesterday.toISOString().split('T')[0];
+        }
 
         let records = await Machine.find({
-            dateKey: { $gte: dateLimit },
+            dateKey: { $gte: dateLimit, $lte: dateEnd },
             G数: { $gte: 3000 }
         }).lean();
         
@@ -314,13 +330,69 @@ app.get('/api/forecast', async (req, res) => {
 
         res.json({
             machines: formatted,
-            targetPeriod: '過去30日間',
+            targetPeriod: `${dateLimit} 〜 ${dateEnd}`,
+            startDate: dateLimit,
+            endDate: dateEnd,
             criteria: '機種別理論出率に基づく設定⑤⑥判定',
             is46Only: !!slot46Numbers,
             timestamp: new Date().toISOString()
         });
     } catch (e) {
         console.error('[API] /api/forecast エラー:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/** 台番詳細: 指定期間内の日別設定⑤⑥判定履歴 */
+app.get('/api/machine-history', async (req, res) => {
+    try {
+        const { Machine } = require('./database');
+        const { loadDB, getDefaultSpecs } = require('./machine_lookup');
+        const { machineNo, startDate, endDate } = req.query;
+        if (!machineNo) return res.status(400).json({ error: '台番を指定してください' });
+
+        let dateLimit = startDate;
+        let dateEnd = endDate;
+        if (!dateLimit) {
+            const d = new Date(); d.setDate(d.getDate() - 30);
+            dateLimit = d.toISOString().split('T')[0];
+        }
+        if (!dateEnd) {
+            const d = new Date(); d.setDate(d.getDate() - 1);
+            dateEnd = d.toISOString().split('T')[0];
+        }
+
+        const records = await Machine.find({
+            台番: machineNo,
+            dateKey: { $gte: dateLimit, $lte: dateEnd }
+        }).sort({ dateKey: 1 }).lean();
+
+        const db = loadDB();
+        const history = records.map(r => {
+            const specs = db[r.機種名] || getDefaultSpecs();
+            let setting = '-';
+            if (specs.s6 && r.出率 >= specs.s6) setting = '⑥';
+            else if (specs.s5 && r.出率 >= specs.s5) setting = '⑤';
+            return {
+                日付: r.dateKey,
+                機種名: r.機種名,
+                出率: r.出率,
+                差枚: r.差枚,
+                G数: r.G数,
+                推定設定: setting
+            };
+        });
+
+        res.json({
+            machineNo,
+            startDate: dateLimit,
+            endDate: dateEnd,
+            history,
+            s6count: history.filter(h => h.推定設定 === '⑥').length,
+            s5count: history.filter(h => h.推定設定 === '⑤').length,
+        });
+    } catch (e) {
+        console.error('[API] /api/machine-history エラー:', e);
         res.status(500).json({ error: e.message });
     }
 });

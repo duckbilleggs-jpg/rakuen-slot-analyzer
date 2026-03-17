@@ -14,36 +14,50 @@ const BASE_URL = 'https://www.d-deltanet.com/pc';
 const PORTAL_PATH = '/D0301.do?pmc=22021030&clc=03&urt=2173&pan=';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-/** HTTP GETでHTMLを取得（Shift_JISデコード対応） */
+/** セッションCookie管理 + 最終URL(Referer用) */
+let sessionCookies = '';
+let lastAccessUrl = '';
+
+/** HTTP GETでHTMLを取得（Shift_JIS+Cookie+Referer対応） */
 function fetchHTML(urlPath) {
     const fullUrl = urlPath.startsWith('http') ? urlPath : `${BASE_URL}/${urlPath}`;
     return new Promise((resolve, reject) => {
         const doRequest = (url, redirectCount = 0) => {
             if (redirectCount > 5) return reject(new Error('リダイレクト回数超過'));
-            const req = https.get(url, {
-                headers: { 'User-Agent': USER_AGENT }
-            }, (res) => {
+            const headers = { 'User-Agent': USER_AGENT };
+            if (sessionCookies) headers['Cookie'] = sessionCookies;
+            if (lastAccessUrl) headers['Referer'] = lastAccessUrl;
+            
+            const req = https.get(url, { headers }, (res) => {
+                // Set-Cookieを蓄積
+                if (res.headers['set-cookie']) {
+                    const cookieMap = {};
+                    (sessionCookies ? sessionCookies.split('; ') : []).forEach(c => {
+                        const [k] = c.split('='); cookieMap[k] = c;
+                    });
+                    res.headers['set-cookie'].forEach(c => {
+                        const p = c.split(';')[0]; const [k] = p.split('='); cookieMap[k] = p;
+                    });
+                    sessionCookies = Object.values(cookieMap).join('; ');
+                }
                 // リダイレクト追跡
                 if ([301, 302, 303, 307].includes(res.statusCode) && res.headers.location) {
                     const newUrl = res.headers.location.startsWith('http') 
-                        ? res.headers.location 
-                        : `${BASE_URL}/${res.headers.location}`;
-                    console.log(`[DDelta] リダイレクト: ${res.statusCode} → ${newUrl}`);
+                        ? res.headers.location : `${BASE_URL}/${res.headers.location}`;
                     return doRequest(newUrl, redirectCount + 1);
                 }
                 const chunks = [];
                 res.on('data', chunk => chunks.push(chunk));
                 res.on('end', () => {
                     const buf = Buffer.concat(chunks);
-                    console.log(`[DDelta] HTTP ${res.statusCode} | ${buf.length} bytes | ${url.substring(0, 80)}`);
                     let html;
                     try {
                         const iconv = require('iconv-lite');
                         html = iconv.decode(buf, 'Shift_JIS');
                     } catch (e) {
                         html = buf.toString('latin1');
-                        console.log('[DDelta] iconv-lite使用不可、latin1フォールバック');
                     }
+                    lastAccessUrl = url; // Referer用に保存
                     resolve(html);
                 });
                 res.on('error', reject);
@@ -54,6 +68,7 @@ function fetchHTML(urlPath) {
         doRequest(fullUrl);
     });
 }
+
 
 
 /** sleep */
@@ -144,17 +159,23 @@ async function fetchModelData(modelInfo) {
     }
     
     // Step 2: 「大当り一覧」リンクのURLを抽出
-    const dataListMatch = html.match(/href="([^"]*)"[^>]*>[^<]*大当り一覧/);
+    // HTMLの&amp;を&に変換してからマッチ
+    const decoded = html.replace(/&amp;/g, '&');
+    // D3301.doリンクを探す（大当り一覧）
+    const d3301Match = decoded.match(/href="(D3301\.do\?[^"]+)"/);
+    // D2901.doリンクも探す（累計ゲーム等のフォールバック）  
+    const d2901Match = decoded.match(/href="(D2901\.do\?[^"]+)"/);
+    const dataListMatch = d3301Match || d2901Match;
+    
     if (!dataListMatch) {
-        // 大当たり一覧がない場合、現在のページにテーブルがあるかもしれない
-        console.log(`[DDelta]   ⚠️ 大当り一覧リンクなし。直接テーブルを試みます。`);
+        console.log(`[DDelta]   ⚠️ データリンクなし。直接テーブルを試みます。`);
         return parseDataTable(html, name);
     }
     
-    const dataListUrl = dataListMatch[1].replace(/&amp;/g, '&');
+    const dataListUrl = dataListMatch[1];
     
-    // Step 3: 大当り一覧ページを取得
-    await sleep(300);
+    // Step 3: 大当り一覧ページを取得（レートリミット対策で間隔を空ける）
+    await sleep(1000);
     let dataHtml;
     try {
         dataHtml = await fetchHTML(dataListUrl);
@@ -163,10 +184,23 @@ async function fetchModelData(modelInfo) {
         return [];
     }
     
-    if (dataHtml.includes('エラーページ') || dataHtml.includes('表示できません')) {
-        console.log(`[DDelta]   ⚠️ 大当り一覧エラー`);
-        return [];
+    if (dataHtml.includes('エラーページ') || dataHtml.includes('混み合って')) {
+        // レートリミットの可能性 → 5秒待ってリトライ
+        console.log(`[DDelta]   ⚠️ レートリミット。リトライ(5秒待機)...`);
+        await sleep(5000);
+        try {
+            dataHtml = await fetchHTML(dataListUrl);
+        } catch (e) {
+            console.log(`[DDelta]   ❌ リトライ失敗: ${e.message}`);
+            return [];
+        }
+        if (dataHtml.includes('エラーページ') || dataHtml.includes('混み合って')) {
+            console.log(`[DDelta]   ❌ リトライ後もエラー`);
+            return [];
+        }
     }
+    console.log(`[DDelta]   ✅ 大当り一覧取得 (${dataHtml.length}文字)`);
+    
     
     return parseDataTable(dataHtml, name);
 }
@@ -180,17 +214,17 @@ async function fetchModelData(modelInfo) {
 function parseDataTable(html, modelName) {
     const rows = [];
     
-    // テーブルを正規表現で解析
     // ヘッダー行: table_headクラスのtdからカラム名を特定
-    const headerMatch = html.match(/<tr[^>]*>(\s*<td[^>]*class="table_head"[^>]*>[^<]*<\/td>\s*)+<\/tr>/);
+    // td内に<a>タグがある場合もあるので、HTML除去してテキスト取得
+    const headerMatch = html.match(/<tr[^>]*>((?:\s*<td[^>]*class="table_head"[^>]*>[\s\S]*?<\/td>\s*)+)<\/tr>/);
     
     let colIdx = { 台番: -1, G数: -1, BB: -1, RB: -1, ART: -1 };
     
     if (headerMatch) {
         const headerRow = headerMatch[0];
-        const headerCells = [...headerRow.matchAll(/<td[^>]*>([^<]*)<\/td>/g)];
+        const headerCells = [...headerRow.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)];
         headerCells.forEach((cell, idx) => {
-            const text = cell[1].trim();
+            const text = cell[1].replace(/<[^>]+>/g, '').trim();
             if (text.includes('台番')) colIdx.台番 = idx;
             else if (text.includes('累計G') || text.includes('累計ゲーム') || text.includes('ゲーム')) colIdx.G数 = idx;
             else if (text.includes('BB')) colIdx.BB = idx;
@@ -213,16 +247,16 @@ function parseDataTable(html, modelName) {
         // ヘッダー行・フッター行をスキップ
         if (trContent.includes('table_head') || trContent.includes('table_foot')) continue;
         
-        // tdを抽出
-        const tdCells = [...trContent.matchAll(/<td[^>]*>([^<]*)<\/td>/g)];
+        // tdを抽出（内部HTMLを除去してプレーンテキスト取得）
+        const tdCells = [...trContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)];
         if (tdCells.length < 2) continue;
         
-        const cellTexts = tdCells.map(c => c[1].trim());
+        const cellTexts = tdCells.map(c => c[1].replace(/<[^>]+>/g, '').trim());
         
         const 台番 = parseInt(cellTexts[colIdx.台番]);
-        const G数 = parseInt(cellTexts[colIdx.G数]);
-        
-        if (!isNaN(台番) && !isNaN(G数)) {
+        // 台番が有効なら行を取得（G数やBBが--でもOK）
+        if (!isNaN(台番)) {
+            const G数 = parseInt(cellTexts[colIdx.G数]) || 0;
             rows.push({
                 機種名: modelName,
                 台番,
@@ -243,13 +277,21 @@ function parseDataTable(html, modelName) {
 async function scrapeDDelta(onProgress) {
     console.log('[DDelta] HTTP GET方式でリアルタイムデータの取得を開始します...');
     
+    // セッション初期化: トップページ→Cookieポリシー承諾
+    sessionCookies = '';
+    lastAccessUrl = '';
+    console.log('[DDelta] セッション初期化中...');
+    await fetchHTML('https://www.d-deltanet.com/');
+    await fetchHTML(`${BASE_URL}/CommonSetCookie.do?key=cookie.policy.portal.agree&value=1678927575000`);
+    console.log('[DDelta] Cookie承諾完了');
+    
     const results = [];
     
     // Step 1: ポータルから全機種リスト取得
     const models = await fetchModelList();
     
     if (models.length === 0) {
-        console.log('[DDelta] ❌ 機種リストが空です。営業時間外の可能性があります。');
+        console.log('[DDelta] ❌ 機種リストが空です。');
         return [];
     }
     
@@ -273,8 +315,8 @@ async function scrapeDDelta(onProgress) {
             console.log(`[DDelta]   ⚠️ エラー: ${err.message}`);
         }
         
-        // サーバー負荷軽減（500ms〜1s間隔）
-        await sleep(500 + Math.floor(Math.random() * 500));
+        // レートリミット対策: 2〜3秒の間隔
+        await sleep(2000 + Math.floor(Math.random() * 1000));
     }
     
     console.log(`\n[DDelta] 合計 ${results.length} 台の生データを取得。分析開始...`);
@@ -304,7 +346,13 @@ function analyzeRealtimeData(machines) {
     const highSettingMachines = [];
 
     for (const m of machines) {
-        if (m.G数 < 1) continue;
+        if (m.G数 < 1) {
+            // 営業時間外（G数=0）でも台番データは保持
+            m.実質確率 = '-'; m.推定設定 = 0; m.信頼度スコア = 0; m.信頼度ラベル = '-';
+            m.残りG数 = 0; m.期待差枚 = 0; m.期待値円 = 0;
+            highSettingMachines.push(m);
+            continue;
+        }
         const specs = db[m.機種名] || getDefaultSpecs();
         const thresholds = getProbThresholds(m.機種名);
         const totalHits = m.BB回数 + m.RB回数 + m.ART回数;

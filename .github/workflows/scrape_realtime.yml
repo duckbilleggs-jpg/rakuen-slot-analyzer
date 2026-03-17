@@ -2,7 +2,7 @@ name: リアルタイムスクレイピング - 楽園立川 (d-deltanet)
 
 on:
   schedule:
-    - cron: '0,30 3-13 * * *'
+    - cron: '0,30 0-13 * * *'
   workflow_dispatch:
 
 jobs:

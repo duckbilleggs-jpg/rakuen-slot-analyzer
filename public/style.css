@@ -58,7 +58,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .logo {
@@ -94,8 +94,11 @@ header {
 
 .header-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+  position: relative;
 }
 
 .status-badge {
@@ -465,8 +468,11 @@ footer a:hover { text-decoration: underline; }
    Responsive
    ============================ */
 @media (max-width: 768px) {
-  .header-inner { padding: 10px 16px; }
-  .logo h1 { font-size: 15px; }
+  .header-inner { padding: 8px 12px; }
+  .logo-icon { font-size: 22px; }
+  .logo h1 { font-size: 14px; }
+  .header-actions { gap: 3px; }
+  .status-badge { padding: 4px 8px; font-size: 11px; }
   .summary-bar {
     grid-template-columns: repeat(2, 1fr);
     padding: 0 16px;

@@ -1,10 +1,9 @@
-name: 自動スクレイピング - 楽園立川
+name: 自動スクレイピング - 全店舗
 
 on:
   schedule:
-    # JST 18:00〜23:30 に30分ごと実行 (UTC 09:00〜14:30)
     - cron: '0,30 9-14 * * *'
-  workflow_dispatch:  # 手動実行も可能
+  workflow_dispatch:
 
 jobs:
   scrape:
@@ -24,10 +23,20 @@ jobs:
       - name: 依存パッケージインストール
         run: npm ci
 
-      - name: スクレイピング実行
-        run:  |
-                  node scraper.js 3 --store tachikawa
-                                node scraper.js 3 --store sagamihara
+      - name: スクレイピング実行 (立川)
+        run: node scraper.js 3 --store tachikawa
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        timeout-minutes: 8 
+        timeout-minutes: 8
+
+      - name: スクレイピング実行 (相模原)
+        run: node scraper.js 3 --store sagamihara
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        timeout-minutes: 8
+
+      - name: スクレイピング実行 (錦糸町)
+        run: node scraper.js 3 --store kinshicho
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        timeout-minutes: 8

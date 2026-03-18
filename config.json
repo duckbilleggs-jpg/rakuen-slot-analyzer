@@ -22,6 +22,7 @@
   "analysis": {
     "minGames": 2000,
     "secondsPerGame": 4.1,
+    "utilizationRate": 85,
     "coinRate": 46,
     "inPerGame": 3
   },
@@ -29,7 +30,7 @@
     {
       "id": "tachikawa",
       "name": "楽園 立川",
-      "minrepoTag": "楽園立川店",
+      "minrepoTag": "楽園立川",
       "ddelta": {
         "pmc": "22021030",
         "clc": "03",
@@ -39,11 +40,21 @@
     {
       "id": "sagamihara",
       "name": "楽園 相模原",
-      "minrepoTag": "楽園相模原店",
+      "minrepoTag": "楽園相模原",
       "ddelta": {
         "pmc": "22021033",
         "clc": "03",
         "urt": "2173"
+      }
+    },
+    {
+      "id": "kinshicho",
+      "name": "みとやジャックポット 錦糸町",
+      "minrepoTag": "みとやジャックポット錦糸町",
+      "ddelta": {
+        "pmc": "13027004",
+        "clc": "03",
+        "urt": "2282"
       }
     }
   ],

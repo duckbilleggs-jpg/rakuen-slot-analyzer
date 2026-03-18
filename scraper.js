@@ -45,9 +45,18 @@ async function fetchDateList(maxDays = 7, storeConfig) {
   $('a').each((_, el) => {
     const href = $(el).attr('href') || '';
     const text = $(el).text().trim();
-    // match links like /2974720/ with date text like 3/12(木)
+    // match links like /2974720/
     const m = href.match(/min-repo\.com\/(\d+)\/?$/);
-    if (m && /\d+\/\d+/.test(text)) {
+    if (!m) return;
+
+    const dateMatch = text.match(/(\d{1,2})\/(\d{1,2})\((月|火|水|木|金|土|日)\)/);
+    if (!dateMatch) return;
+
+    // 店舗名が含まれているか、または日付のみのリンクか（錦糸町などで日付のみのケースがあるため）
+    const isStoreMatch = text.includes(storeConfig.minrepoTag) || text.includes(storeConfig.minrepoTag.replace('店', ''));
+    const isDateOnlyMatch = text.trim() === dateMatch[0];
+
+    if (isStoreMatch || isDateOnlyMatch) {
       results.push({ date: text, id: m[1], url: `${config.scrape.baseUrl}/${m[1]}/` });
     }
   });
@@ -110,8 +119,8 @@ async function scrapeRecent(days = 1, storeConfig) {
     allData[dateKey] = { date: d.date, id: d.id, machines: rows };
 
     // 日別ファイル保存 (バックアップ用途で一応残す)
-    const filePath = path.join(DATA_DIR, `${dateKey}.json`);
-    fs.writeFileSync(filePath, JSON.stringify({ date: d.date, id: d.id, machines: rows }, null, 2), 'utf-8');
+    const filePath = path.join(DATA_DIR, `${storeConfig.id}_${dateKey}.json`);
+    fs.writeFileSync(filePath, JSON.stringify({ date: d.date, id: d.id, machines: rows, storeId: storeConfig.id }, null, 2), 'utf-8');
 
     // MongoDB への一括 Upsert
     try {
@@ -182,11 +191,27 @@ async function loadDayData(dateKey, storeId = 'tachikawa') {
   }
 
   // DBになければフォールバックとしてローカルファイルを見る
-  const filePath = path.join(DATA_DIR, `${dateKey}.json`);
-  if (fs.existsSync(filePath)) {
-    return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+  const fileWithStore = path.join(DATA_DIR, `${storeId}_${dateKey}.json`);
+  const fileOld = path.join(DATA_DIR, `${dateKey}.json`);
+  
+  let filePath = fileWithStore;
+  if (!fs.existsSync(fileWithStore)) {
+    if (fs.existsSync(fileOld)) {
+      filePath = fileOld;
+    } else {
+      return null;
+    }
   }
-  return null;
+
+  const raw = fs.readFileSync(filePath, 'utf-8');
+  const data = JSON.parse(raw);
+
+  // 古い形式のファイルの場合、店舗IDが一致するかチェック（安全のため）
+  if (data.storeId && data.storeId !== storeId) {
+    return null;
+  }
+
+  return data;
 }
 
 /** 今日の日付キーを返す */

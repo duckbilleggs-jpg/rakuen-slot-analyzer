@@ -13,13 +13,13 @@ const { loadDB, getDefaultSpecs } = require('./machine_lookup');
  * @param {string} [reportId] - 元データのレポートID
  * @returns {Array} 設定5以上と推定される台のリスト
  */
-function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null) {
+function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null, currentConfig = config) {
   const db = loadDB();
   const results = [];
 
   for (const m of machines) {
     // G数が最低基準未満 → スキップ
-    if (m.G数 < config.analysis.minGames) continue;
+    if (m.G数 < currentConfig.analysis.minGames) continue;
 
     // 機種の理論値を取得
     const specs = db[m.機種名] || getDefaultSpecs();
@@ -42,7 +42,11 @@ function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null) {
     const confidence = calcConfidence(m.G数);
 
     // 期待値計算
-    const ev = calcExpectedValue(specs, estimatedSetting, asOfTime);
+    const ev = calcExpectedValue(specs, estimatedSetting, asOfTime, currentConfig);
+
+    // 1Gあたりの期待枚数 (フロントエンドでの動적再計算用)
+    const rate = specs[`s${estimatedSetting}`] || 108;
+    const expectedSamaiPerG = (currentConfig.analysis.inPerGame || 3) * (rate - 100) / 100;
 
     results.push({
       ...m,
@@ -50,9 +54,9 @@ function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null) {
       信頼度: confidence,
       信頼度ラベル: confidenceLabel(confidence),
       理論出率: specs[`s${estimatedSetting}`],
+      期待枚数PerG: expectedSamaiPerG,
       残りG数: ev.残りG数,
       期待差枚: ev.期待差枚,
-      期待値円: ev.期待値円,
       期待値円: ev.期待値円,
       閉店まで: ev.閉店まで,
       reportId: reportId
@@ -131,9 +135,9 @@ function confidenceLabel(score) {
  * @param {number} setting - 推定設定 (5 or 6)
  * @param {Date} asOfTime - データ取得時刻
  */
-function calcExpectedValue(specs, setting, asOfTime) {
+function calcExpectedValue(specs, setting, asOfTime, currentConfig = config) {
   const closingTime = new Date(asOfTime);
-  closingTime.setHours(config.closingTime.hour, config.closingTime.minute, 0, 0);
+  closingTime.setHours(currentConfig.closingTime.hour, currentConfig.closingTime.minute, 0, 0);
 
   // 閉店を過ぎていたら翌日扱い... ではなく 0 とする
   const remainingMs = closingTime - asOfTime;
@@ -142,21 +146,16 @@ function calcExpectedValue(specs, setting, asOfTime) {
   }
 
   const remainingSec = remainingMs / 1000;
-  const 残りG数 = Math.floor(remainingSec / config.analysis.secondsPerGame);
+  const 残りG数 = Math.floor(remainingSec / currentConfig.analysis.secondsPerGame);
 
   // 理論出率(%)
   const theoreticalRate = specs[`s${setting}`] || 108;
 
   // 期待差枚 = 残りG数 × IN枚数(3枚) × (出率 - 100%) / 100
-  const 期待差枚 = Math.round(残りG数 * config.analysis.inPerGame * (theoreticalRate - 100) / 100);
+  const 期待差枚 = Math.round(残りG数 * currentConfig.analysis.inPerGame * (theoreticalRate - 100) / 100);
 
   // 期待値(円) = 期待差枚 × (貸し単価÷IN枚数)
-  // 46円スロット: 1000円で約21.7枚 → 1枚あたり約46.0円 (等価交換の場合)
-  // ただし一般的に46円貸しの交換レートは46÷3 ≒ 20円/枚 （メダル等価時）
-  // ここでは等価交換を仮定: 1枚 = 46/3 ≒ 15.33円（非等価の場合）
-  // 46円スロット = IN 3枚で46円、つまり out時も同率なら 1枚 ≒ 15.33円
-  // ただし実運用上、46円貸は出玉を46円で返すので 差枚 × (46/3) で計算
-  const 期待値円 = Math.round(期待差枚 * (config.analysis.coinRate / config.analysis.inPerGame));
+  const 期待値円 = Math.round(期待差枚 * (currentConfig.analysis.coinRate / currentConfig.analysis.inPerGame));
 
   // 残り時間の表示
   const hrs = Math.floor(remainingSec / 3600);

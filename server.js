@@ -156,7 +156,7 @@ app.get('/api/high-setting', async (req, res) => {
     const config = loadConfig();
     const now = lastScrapeTime ? new Date(lastScrapeTime) : new Date();
     const filtered = filter46Only(data.machines);
-    const highSetting = analyzeHighSetting(filtered, now, data.id);
+    const highSetting = analyzeHighSetting(filtered, now, data.id, config);
     res.json({
       machines: highSetting,
       lastScrape: lastScrapeTime,

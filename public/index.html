@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎰 楽園立川 設定判別ダッシュボード</title>
-  <meta name="description" content="楽園立川のスロット設定判別ツール。設定5以上の高設定台をリアルタイム分析。">
+  <title>🎰 設定判別ダッシュボード</title>
+  <meta name="description" content="パチスロ設定判別ツール。複数店舗の高設定台をリアルタイム分析。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2">
@@ -16,12 +16,11 @@
       <div class="logo">
         <span class="logo-icon">🎰</span>
         <div>
-          <h1 style="display: flex; align-items: center; gap: 10px;">
-            <select id="hallSelect" style="background: transparent; border: none; color: inherit; font-size: inherit; font-weight: inherit; font-family: inherit; appearance: none; cursor: pointer; outline: none; border-bottom: 2px dashed rgba(255,255,255,0.3); padding-bottom: 2px;">
-                <option value="tachikawa">楽園立川</option>
-                <option value="future1" disabled>（追加予定ホール...）</option>
-            </select>
-          </h1>
+          <h1 style="display: flex; align-items: center; gap: 10px;">🎰 設定判別ツール</h1>
+          <nav class="store-tabs" id="storeTabs">
+            <!-- JSで動的に生成 -->
+            <button class="store-tab active">読み込み中...</button>
+          </nav>
           <p class="subtitle" id="dateDisplay">読み込み中...</p>
         </div>
       </div>
@@ -93,6 +92,10 @@
         <div class="config-group">
           <label>1Gあたり秒数</label>
           <input type="number" id="cfgSecPerGame" min="1" max="10" step="0.1" value="4.1" class="input-sm">
+        </div>
+        <div class="config-group">
+          <label>想定稼働率(%)</label>
+          <input type="number" id="cfgUtilizationRate" value="85" min="1" max="100" class="input-sm">
         </div>
       </div>
       <div class="config-actions">

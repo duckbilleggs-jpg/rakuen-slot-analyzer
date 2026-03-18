@@ -92,6 +92,36 @@ header {
   margin-top: 2px;
 }
 
+.store-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.store-tab {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.store-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.store-tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
 .header-actions {
   display: flex;
   flex-direction: column;

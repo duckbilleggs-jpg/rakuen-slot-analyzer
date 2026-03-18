@@ -40,23 +40,38 @@ async function loadStores() {
   try {
     const res = await fetch('/api/stores');
     availableStores = await res.json();
-    const select = document.getElementById('hallSelect');
-    select.innerHTML = '';
-    availableStores.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s.id;
-      opt.textContent = s.name;
-      select.appendChild(opt);
+    const container = document.getElementById('storeTabs');
+    container.innerHTML = '';
+    
+    availableStores.forEach((s, idx) => {
+      const btn = document.createElement('button');
+      btn.className = `store-tab ${idx === 0 ? 'active' : ''}`;
+      btn.textContent = s.name;
+      btn.dataset.id = s.id;
+      btn.onclick = () => switchStore(s.id);
+      container.appendChild(btn);
     });
   } catch (e) {
     console.error('店舗情報の取得に失敗しました', e);
   }
 }
 
+// 店舗切り替え
+function switchStore(storeId) {
+  document.querySelectorAll('.store-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.id === storeId);
+  });
+  
+  // データ再取得
+  if (activeTab === 'past') fetchPastData();
+  else if (activeTab === 'realtime') fetchRealtimeData();
+  else if (activeTab === 'forecast') fetchForecastData();
+}
+
 // 店舗ID取得ヘルパー
 function getSelectedStoreId() {
-  const select = document.getElementById('hallSelect');
-  return select ? select.value : 'tachikawa';
+  const activeBtn = document.querySelector('.store-tab.active');
+  return activeBtn ? activeBtn.dataset.id : 'tachikawa';
 }
 
 function getStoreConfig(id) {
@@ -287,8 +302,10 @@ function updateCountdown() {
   const now = new Date();
   const h = now.getHours();
   const openHour = 9; // 開店時間
+  const closeH = parseInt(document.getElementById('cfgCloseH')?.value) || 22;
+  const closeM = parseInt(document.getElementById('cfgCloseM')?.value) || 40;
   const closing = new Date(now);
-  closing.setHours(22, 40, 0, 0);
+  closing.setHours(closeH, closeM, 0, 0);
 
   if (h < openHour) {
     // 開店前
@@ -419,8 +436,6 @@ function renderRealtimeTable() {
         case 'games': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
     }
 
-    // 全台表示（制限なし）
-
     if (filtered.length === 0) {
         table.style.display = 'none';
         empty.style.display = 'block';
@@ -430,7 +445,27 @@ function renderRealtimeTable() {
     table.style.display = 'table';
     empty.style.display = 'none';
 
+    // 動的な数値の再計算
+    const now = new Date();
+    const secPerGame = parseFloat(document.getElementById('cfgSecPerGame').value) || 4.1;
+    const utilRate = (parseInt(document.getElementById('cfgUtilizationRate').value) || 85) / 100;
+    const closeH = parseInt(document.getElementById('cfgCloseH').value) || 22;
+    const closeM = parseInt(document.getElementById('cfgCloseM').value) || 40;
+    const closing = new Date();
+    closing.setHours(closeH, closeM, 0, 0);
+
+    let remainingGames = 0;
+    if (now < closing) {
+        const remainingMs = (closing - now) * utilRate;
+        remainingGames = Math.max(0, Math.floor((remainingMs / 1000) / secPerGame));
+    }
+
     tbody.innerHTML = filtered.map(m => {
+        // 残りG数と期待値の動的計算
+        const currentRemainingG = remainingGames;
+        const currentExpectedSamai = Math.floor(currentRemainingG * (m.期待枚数PerG || 0));
+        const currentExpectedYen = Math.floor(currentExpectedSamai * (46 / 3)); 
+
         let settingClass = '';
         let badgeClass = '';
         let badgeText = '';
@@ -446,7 +481,7 @@ function renderRealtimeTable() {
             settingClass = ''; badgeClass = ''; badgeText = '-';
         }
         const confClass = m.信頼度スコア >= 80 ? 'confidence-high' : m.信頼度スコア >= 50 ? 'confidence-mid' : 'confidence-low';
-        const evClass = (m.期待値円 || 0) >= 0 ? 'td-positive' : 'td-negative';
+        const evClass = (currentExpectedYen || 0) >= 0 ? 'td-positive' : 'td-negative';
 
         return `
         <tr class="${settingClass}">
@@ -463,9 +498,9 @@ function renderRealtimeTable() {
             <td class="td-num ${m.最高出玉 >= 0 ? 'td-positive' : 'td-negative'}">${m.最高出玉 ? m.最高出玉.toLocaleString() : '-'}</td>
             <td class="td-num">${m.BB回数 || 0}/${m.RB回数 || 0}/${m.ART回数 || 0}</td>
             <td class="td-num">${m.G数 ? m.G数.toLocaleString() : '0'}</td>
-            <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
-            <td class="td-num td-highlight">${m.期待差枚 ? (m.期待差枚 >= 0 ? '+' : '') + m.期待差枚.toLocaleString() : '-'}</td>
-            <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
+            <td class="td-num">${currentRemainingG.toLocaleString()}</td>
+            <td class="td-num td-highlight">${currentExpectedSamai >= 0 ? '+' : ''}${currentExpectedSamai.toLocaleString()}</td>
+            <td class="td-num td-highlight ${evClass}">¥${currentExpectedYen.toLocaleString()}</td>
         </tr>
         `;
     }).join('');
@@ -736,6 +771,7 @@ async function loadConfigUI() {
     document.getElementById('cfgCloseM').value = cfg.closingTime.minute;
     document.getElementById('cfgMinGames').value = cfg.analysis.minGames;
     document.getElementById('cfgSecPerGame').value = cfg.analysis.secondsPerGame;
+    document.getElementById('cfgUtilizationRate').value = cfg.analysis.utilizationRate || 85;
 
     // フッタースケジュール表示
     if (cfg.schedule.enabled) {
@@ -779,6 +815,7 @@ async function saveConfig() {
     cfg.analysis = {
       minGames: parseInt(document.getElementById('cfgMinGames').value),
       secondsPerGame: parseFloat(document.getElementById('cfgSecPerGame').value),
+      utilizationRate: parseInt(document.getElementById('cfgUtilizationRate').value) || 85,
       coinRate: 46,
       inPerGame: 3
     };

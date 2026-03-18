@@ -25,7 +25,9 @@ jobs:
         run: npm ci
 
       - name: スクレイピング実行
-        run: node scraper.js 3
+        run:  |
+                  node scraper.js 3 --store tachikawa
+                                node scraper.js 3 --store sagamihara
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
-        timeout-minutes: 8
+        timeout-minutes: 8 

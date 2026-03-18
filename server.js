@@ -49,11 +49,11 @@ let lastScrapeTime = null;
 let scrapeStatus = 'idle'; // 'idle' | 'running' | 'error'
 let lastScrapeError = null;
 
-/** リアルタイムデータのキャッシュとステータス */
-let cachedRealtimeData = [];
-let lastRealtimeFetch = null;
+/** リアルタイムデータのキャッシュとステータス（店舗別） */
+let cachedRealtimeData = {};   // { storeId: [...machines] }
+let lastRealtimeFetch = {};     // { storeId: 'ISO timestamp' }
 let realtimeFetchStatus = 'idle'; // 'idle' | 'running' | 'error'
-let realtimeProgress = { current: 0, total: 0, modelName: '' };
+let realtimeProgress = { current: 0, total: 0, modelName: '', storeName: '' };
 
 
 
@@ -168,16 +168,19 @@ app.get('/api/all', async (req, res) => {
 /** リアルタイムデータ取得（d-deltanet） */
 app.get('/api/realtime', async (req, res) => {
     try {
+        const storeId = req.query.store || 'tachikawa';
+        const storeData = cachedRealtimeData[storeId] || [];
+        const storeTimestamp = lastRealtimeFetch[storeId] || null;
 
         res.json({
-            machines: cachedRealtimeData,
-            timestamp: lastRealtimeFetch || null,
+            machines: storeData,
+            timestamp: storeTimestamp,
             status: realtimeFetchStatus,
             progress: realtimeProgress,
             message: realtimeFetchStatus === 'running' 
-                ? `スクレイピング中... ${realtimeProgress.current}/${realtimeProgress.total} ${realtimeProgress.modelName}`
-                : cachedRealtimeData.length > 0 
-                    ? `リアルタイムデータ（${cachedRealtimeData.length}台）` 
+                ? `スクレイピング中... ${realtimeProgress.current}/${realtimeProgress.total} ${realtimeProgress.modelName} (${realtimeProgress.storeName})`
+                : storeData.length > 0 
+                    ? `リアルタイムデータ（${storeData.length}台）` 
                     : 'データ未取得'
         });
     } catch (e) {
@@ -409,17 +412,29 @@ async function runScrape() {
   console.log(`[Server] スクレイプ開始: ${new Date().toLocaleString('ja-JP')}`);
 
   try {
-    const data = await scrapeRecent(2);
+    const config = loadConfig();
+    const allNames = [];
+
+    for (const store of config.stores) {
+      console.log(`[Server] みんレポ取得: ${store.name}...`);
+      try {
+        const data = await scrapeRecent(2, store);
+        for (const day of Object.values(data)) {
+          for (const m of day.machines) {
+            allNames.push(m.機種名);
+          }
+        }
+      } catch (storeErr) {
+        console.error(`[Server] ${store.name} スクレイプエラー: ${storeErr.message}`);
+      }
+    }
+
     lastScrapeTime = new Date().toISOString();
 
     // 未知機種の自動検索
-    const allNames = [];
-    for (const day of Object.values(data)) {
-      for (const m of day.machines) {
-        allNames.push(m.機種名);
-      }
+    if (allNames.length > 0) {
+      await updateDBForNewMachines(allNames);
     }
-    await updateDBForNewMachines(allNames);
 
     scrapeStatus = 'idle';
     console.log(`[Server] スクレイプ完了: ${new Date().toLocaleString('ja-JP')}`);
@@ -440,32 +455,43 @@ async function runRealtimeScrape() {
     console.log(`[Server] リアルタイムデータ取得開始: ${new Date().toLocaleString('ja-JP')}`);
 
     try {
-        const data = await scrapeDDelta((current, total, modelName) => {
-            realtimeProgress = { current, total, modelName };
-        });
-        realtimeProgress = { current: 0, total: 0, modelName: '' };
-        if (data && data.length > 0) {
-            cachedRealtimeData = data;
-        } else {
-            console.log('[Server] スクレイパーから0台返却。キャッシュは上書きしません。');
-        }
-        lastRealtimeFetch = new Date().toISOString();
-        realtimeFetchStatus = 'idle';
-        console.log(`[Server] リアルタイムデータ取得完了 (${cachedRealtimeData.length}台): ${new Date().toLocaleString('ja-JP')}`);
+        const cfg = loadConfig();
+        for (const store of cfg.stores) {
+            console.log(`[Server] リアルタイム取得: ${store.name}...`);
+            realtimeProgress = { current: 0, total: 0, modelName: '', storeName: store.name };
 
-        // MongoDBにキャッシュ保存（0台でない場合のみ）
-        if (cachedRealtimeData.length > 0) {
-          try {
-              await RealtimeCache.findOneAndUpdate(
-                  { key: 'latest' },
-                  { machines: cachedRealtimeData, timestamp: lastRealtimeFetch },
-                  { upsert: true }
-              );
-              console.log('[Server] リアルタイムデータMongoDB保存完了');
-          } catch (dbErr) {
-              console.error('[Server] リアルタイムデータMongoDB保存失敗:', dbErr.message);
-          }
+            try {
+                const data = await scrapeDDelta((current, total, modelName) => {
+                    realtimeProgress = { current, total, modelName, storeName: store.name };
+                }, store);
+
+                if (data && data.length > 0) {
+                    cachedRealtimeData[store.id] = data;
+                    lastRealtimeFetch[store.id] = new Date().toISOString();
+                    console.log(`[Server] ${store.name} リアルタイム取得完了 (${data.length}台)`);
+
+                    // MongoDBにキャッシュ保存
+                    try {
+                        await RealtimeCache.findOneAndUpdate(
+                            { key: `latest_${store.id}` },
+                            { machines: data, timestamp: lastRealtimeFetch[store.id] },
+                            { upsert: true }
+                        );
+                        console.log(`[Server] ${store.name} リアルタイムデータMongoDB保存完了`);
+                    } catch (dbErr) {
+                        console.error(`[Server] ${store.name} MongoDB保存失敗:`, dbErr.message);
+                    }
+                } else {
+                    console.log(`[Server] ${store.name} スクレイパーから0台返却。キャッシュは上書きしません。`);
+                }
+            } catch (storeErr) {
+                console.error(`[Server] ${store.name} リアルタイム取得エラー: ${storeErr.message}`);
+            }
         }
+
+        realtimeProgress = { current: 0, total: 0, modelName: '', storeName: '' };
+        realtimeFetchStatus = 'idle';
+        console.log(`[Server] 全店舗リアルタイムデータ取得完了: ${new Date().toLocaleString('ja-JP')}`);
     } catch (e) {
         realtimeFetchStatus = 'error';
         console.error(`[Server] リアルタイムデータ取得エラー: ${e.message}`);
@@ -577,13 +603,16 @@ function getLocalIP() {
   try {
     await connectDB();
 
-    // 起動時にMongoDBからリアルタイムキャッシュを復元
+    // 起動時にMongoDBからリアルタイムキャッシュを復元（全店舗）
     try {
-      const cached = await RealtimeCache.findOne({ key: 'latest' });
-      if (cached && cached.machines && cached.machines.length > 0) {
-        cachedRealtimeData = cached.machines;
-        lastRealtimeFetch = cached.timestamp ? cached.timestamp.toISOString() : new Date().toISOString();
-        console.log(`[Server] MongoDBからリアルタイムキャッシュ復元: ${cachedRealtimeData.length}台`);
+      const cfg = loadConfig();
+      for (const store of cfg.stores) {
+        const cached = await RealtimeCache.findOne({ key: `latest_${store.id}` });
+        if (cached && cached.machines && cached.machines.length > 0) {
+          cachedRealtimeData[store.id] = cached.machines;
+          lastRealtimeFetch[store.id] = cached.timestamp ? cached.timestamp.toISOString() : new Date().toISOString();
+          console.log(`[Server] MongoDBからリアルタイムキャッシュ復元 (${store.name}): ${cached.machines.length}台`);
+        }
       }
     } catch (cacheErr) {
       console.log('[Server] リアルタイムキャッシュ復元失敗:', cacheErr.message);

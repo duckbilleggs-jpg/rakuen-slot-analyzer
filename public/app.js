@@ -751,41 +751,38 @@ async function loadConfigUI() {
 }
 
 async function saveConfig() {
-  const cfg = {
-    schedule: {
+  try {
+    // 現在のconfig.jsonを取得して、UI入力値だけ上書きする（storesなど消さないため）
+    const currentRes = await fetch('/api/config');
+    const cfg = await currentRes.json();
+
+    cfg.schedule = {
       enabled: document.getElementById('cfgEnabled').checked,
       startHour: parseInt(document.getElementById('cfgStartH').value),
       startMinute: parseInt(document.getElementById('cfgStartM').value),
       endHour: parseInt(document.getElementById('cfgEndH').value),
       endMinute: parseInt(document.getElementById('cfgEndM').value),
       intervalMinutes: parseInt(document.getElementById('cfgInterval').value)
-    },
-    realtimeSchedule: {
+    };
+    cfg.realtimeSchedule = {
       enabled: document.getElementById('cfgEnabled').checked,
       startHour: parseInt(document.getElementById('cfgRtStartH').value),
       startMinute: parseInt(document.getElementById('cfgRtStartM').value),
       endHour: parseInt(document.getElementById('cfgRtEndH').value),
       endMinute: parseInt(document.getElementById('cfgRtEndM').value),
       intervalMinutes: parseInt(document.getElementById('cfgRtInterval').value)
-    },
-    closingTime: {
+    };
+    cfg.closingTime = {
       hour: parseInt(document.getElementById('cfgCloseH').value),
       minute: parseInt(document.getElementById('cfgCloseM').value)
-    },
-    analysis: {
+    };
+    cfg.analysis = {
       minGames: parseInt(document.getElementById('cfgMinGames').value),
       secondsPerGame: parseFloat(document.getElementById('cfgSecPerGame').value),
       coinRate: 46,
       inPerGame: 3
-    },
-    scrape: {
-      storeTag: "楽園立川店",
-      baseUrl: "https://min-repo.com",
-      requestIntervalMs: 1000
-    }
-  };
+    };
 
-  try {
     await fetch('/api/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

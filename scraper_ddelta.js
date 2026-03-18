@@ -373,8 +373,8 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
             console.log(`[DDelta]   ⚠️ エラー: ${err.message}`);
         }
         
-        // レートリミット対策: 2〜3秒の間隔
-        await sleep(2000 + Math.floor(Math.random() * 1000));
+        // レートリミット対策: 1〜1.5秒の間隔
+        await sleep(1000 + Math.floor(Math.random() * 500));
     }
     
     // 46円スロットの台番号リストを保存（5円スロット除外用ホワイトリスト）

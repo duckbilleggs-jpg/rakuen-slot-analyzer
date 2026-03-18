@@ -12,8 +12,8 @@ const https = require('https');
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
-// 強制終了タイマー（5分で強制終了）
-const FORCE_EXIT_MS = 5 * 60 * 1000;
+// 強制終了タイマー（15分で強制終了）
+const FORCE_EXIT_MS = 15 * 60 * 1000;
 const forceExitTimer = setTimeout(() => {
     console.error('[CLI] ⏰ 5分タイムアウト。強制終了します。');
     process.exit(2);

@@ -472,8 +472,11 @@ function renderRealtimeTable() {
     tbody.innerHTML = filtered.map(m => {
         // 残りG数と期待値の動的計算
         const currentRemainingG = remainingGames;
-        const currentExpectedSamai = Math.floor(currentRemainingG * (m.期待枚数PerG || 0));
-        const currentExpectedYen = Math.floor(currentExpectedSamai * (46 / 3)); 
+        // 理論出率から期待枚数/Gを計算 (例: 108% → 0.08枚/G × 3枚IN = 0.24枚/G)
+        const mechRate = m.理論出率 || 100;
+        const expectedPerG = 3 * (mechRate - 100) / 100; // IN3枚 × (出率-100)%
+        const currentExpectedSamai = m.期待差枚 || Math.floor(currentRemainingG * expectedPerG);
+        const currentExpectedYen = m.期待値円 || Math.floor(currentExpectedSamai * (46 / 3)); 
 
         let settingClass = '';
         let badgeClass = '';

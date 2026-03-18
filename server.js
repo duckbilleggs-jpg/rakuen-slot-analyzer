@@ -42,7 +42,8 @@ function filter46Only(machines) {
 
 // 静的ファイル配信
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 /** 最新スクレイプ時刻の記録 */
 let lastScrapeTime = null;

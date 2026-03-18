@@ -11,7 +11,6 @@ const { loadDB, getDefaultSpecs } = require('./machine_lookup');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
 const BASE_URL = 'https://www.d-deltanet.com/pc';
-const PORTAL_PATH = '/D0301.do?pmc=22021030&clc=03&urt=2173&pan=';
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
 /** セッションCookie管理 + 最終URL(Referer用) */
@@ -78,13 +77,14 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
  * ポータルページから全機種のリンク情報を取得
  * 返り値: [{name: '機種名', url: 'D2301.do?...'}]
  */
-async function fetchModelList() {
+async function fetchModelList(storeConfig) {
     const allModels = [];
     let page = 1;
+    const { pmc, clc, urt } = storeConfig.ddelta;
     
     while (true) {
-        console.log(`[DDelta] ポータル ページ${page} を取得中...`);
-        const html = await fetchHTML(`D0301.do?pmc=22021030&clc=03&urt=2173&pan=${page}`);
+        console.log(`[DDelta] ${storeConfig.name} ポータル ページ${page} を取得中...`);
+        const html = await fetchHTML(`D0301.do?pmc=${pmc}&clc=${clc}&urt=${urt}&pan=${page}`);
         
         // デバッグ: HTML内容の確認
         const d2301Count = (html.match(/D2301/g) || []).length;
@@ -174,96 +174,140 @@ async function fetchModelData(modelInfo) {
     
     const dataListUrl = dataListMatch[1];
     
-    // Step 3: 大当り一覧ページを取得（レートリミット対策で間隔を空ける）
+    // Step 3: 大当り一覧ページ(データ1)を取得（レートリミット対策で間隔を空ける）
     await sleep(1000);
-    let dataHtml;
-    try {
-        dataHtml = await fetchHTML(dataListUrl);
-    } catch (e) {
-        console.log(`[DDelta]   ⚠️ 大当り一覧取得失敗: ${e.message}`);
-        return [];
+    let dataHtml = await fetchWithRetry(dataListUrl);
+    if (!dataHtml) return [];
+    
+    // Step 4: データ2のURLを探して取得（最高出玉等）
+    let data2Url = null;
+    const cheerio = require('cheerio');
+    const $1 = cheerio.load(dataHtml);
+    $1('a').each((i, el) => {
+        const text = $1(el).text();
+        if (text.includes('データ2') || text.includes('データ２') || text.includes('2')) {
+            const href = $1(el).attr('href');
+            if (href && href.includes('.do?')) {
+                data2Url = href.replace(/&amp;/g, '&');
+            }
+        }
+    });
+
+    // dan=2 などのパターンで直接組み立てるフォールバック
+    if (!data2Url && dataListUrl.includes('dan=')) {
+        data2Url = dataListUrl.replace(/dan=\d+/, 'dan=2');
+    }
+
+    let data2Html = '';
+    if (data2Url) {
+        await sleep(1000);
+        data2Html = await fetchWithRetry(data2Url);
     }
     
-    if (dataHtml.includes('エラーページ') || dataHtml.includes('混み合って')) {
-        // レートリミットの可能性 → 5秒待ってリトライ
-        console.log(`[DDelta]   ⚠️ レートリミット。リトライ(5秒待機)...`);
-        await sleep(5000);
+    console.log(`[DDelta]   ✅ データ取得 (Data1: ${dataHtml.length}文字, Data2: ${data2Html ? data2Html.length : 0}文字)`);
+    return parseDataTable(dataHtml, data2Html, name);
+}
+
+/** 混雑エラー時のリトライ付きフェッチ */
+async function fetchWithRetry(url) {
+    let retries = 3;
+    while (retries > 0) {
+        let html;
         try {
-            dataHtml = await fetchHTML(dataListUrl);
+            html = await fetchHTML(url);
         } catch (e) {
-            console.log(`[DDelta]   ❌ リトライ失敗: ${e.message}`);
-            return [];
+            console.log(`[DDelta]   ⚠️ 取得失敗: ${e.message}`);
+            return null;
         }
-        if (dataHtml.includes('エラーページ') || dataHtml.includes('混み合って')) {
-            console.log(`[DDelta]   ❌ リトライ後もエラー`);
-            return [];
+        
+        if (html.includes('エラーページ') || html.includes('混み合って')) {
+            console.log(`[DDelta]   ⚠️ レートリミット。リトライ(3秒待機)... 残り${retries-1}回`);
+            await sleep(3000);
+            retries--;
+        } else {
+            return html;
         }
     }
-    console.log(`[DDelta]   ✅ 大当り一覧取得 (${dataHtml.length}文字)`);
-    
-    
-    return parseDataTable(dataHtml, name);
+    console.log(`[DDelta]   ❌ リトライ後もエラー`);
+    return null;
 }
 
 /**
  * HTMLテーブルからデータを解析
- * d-deltanetのテーブル構造:
- *   <td class="table_head">台番</td><td class="table_head">累計G数</td>...
- *   <td>3501</td><td>5432</td>...
+ * Data1: 累計G数, BB, RB, ART など
+ * Data2: 最高出玉(差枚) など
  */
-function parseDataTable(html, modelName) {
+function parseDataTable(html1, html2, modelName) {
     const rows = [];
+    const cheerio = require('cheerio');
     
     // ヘッダー行: table_headクラスのtdからカラム名を特定
-    // td内に<a>タグがある場合もあるので、HTML除去してテキスト取得
-    const headerMatch = html.match(/<tr[^>]*>((?:\s*<td[^>]*class="table_head"[^>]*>[\s\S]*?<\/td>\s*)+)<\/tr>/);
+    let colIdx1 = { 台番: -1, G数: -1, BB: -1, RB: -1, ART: -1 };
     
-    let colIdx = { 台番: -1, G数: -1, BB: -1, RB: -1, ART: -1 };
-    
-    if (headerMatch) {
-        const headerRow = headerMatch[0];
-        const headerCells = [...headerRow.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)];
-        headerCells.forEach((cell, idx) => {
-            const text = cell[1].replace(/<[^>]+>/g, '').trim();
-            if (text.includes('台番')) colIdx.台番 = idx;
-            else if (text.includes('累計G') || text.includes('累計ゲーム') || text.includes('ゲーム')) colIdx.G数 = idx;
-            else if (text.includes('BB')) colIdx.BB = idx;
-            else if (text.includes('RB')) colIdx.RB = idx;
-            else if (text.includes('ART')) colIdx.ART = idx;
-        });
-    }
-    
-    if (colIdx.台番 === -1 || colIdx.G数 === -1) {
+    const $1 = cheerio.load(html1);
+    const headerRow1 = $1('tr:has(td.table_head)').first();
+    headerRow1.find('td').each((idx, cell) => {
+        const text = $1(cell).text().trim();
+        if (text.includes('台番')) colIdx1.台番 = idx;
+        else if (text.includes('累計G') || text.includes('累計ゲーム') || text.includes('ゲーム')) colIdx1.G数 = idx;
+        else if (text.includes('BB')) colIdx1.BB = idx;
+        else if (text.includes('RB')) colIdx1.RB = idx;
+        else if (text.includes('ART')) colIdx1.ART = idx;
+    });
+
+    if (colIdx1.台番 === -1 || colIdx1.G数 === -1) {
         return [];
     }
-    
-    // データ行を抽出: table_headでもtable_footでもない通常のtr
-    const trPattern = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-    let trMatch;
-    
-    while ((trMatch = trPattern.exec(html)) !== null) {
-        const trContent = trMatch[1];
+
+    $1('tr').each((_, tr) => {
+        const $tr = $1(tr);
+        if ($tr.find('.table_head, .table_foot').length > 0) return;
         
-        // ヘッダー行・フッター行をスキップ
-        if (trContent.includes('table_head') || trContent.includes('table_foot')) continue;
-        
-        // tdを抽出（内部HTMLを除去してプレーンテキスト取得）
-        const tdCells = [...trContent.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)];
-        if (tdCells.length < 2) continue;
-        
-        const cellTexts = tdCells.map(c => c[1].replace(/<[^>]+>/g, '').trim());
-        
-        const 台番 = parseInt(cellTexts[colIdx.台番]);
-        // 台番が有効なら行を取得（G数やBBが--でもOK）
+        const cells = $tr.find('td').map((_, td) => $1(td).text().trim()).get();
+        if (cells.length < 2) return;
+
+        const 台番 = parseInt(cells[colIdx1.台番].replace(/,/g, ''));
         if (!isNaN(台番)) {
-            const G数 = parseInt(cellTexts[colIdx.G数]) || 0;
             rows.push({
                 機種名: modelName,
                 台番,
-                G数,
-                BB回数: colIdx.BB !== -1 ? (parseInt(cellTexts[colIdx.BB]) || 0) : 0,
-                RB回数: colIdx.RB !== -1 ? (parseInt(cellTexts[colIdx.RB]) || 0) : 0,
-                ART回数: colIdx.ART !== -1 ? (parseInt(cellTexts[colIdx.ART]) || 0) : 0
+                G数: parseInt(cells[colIdx1.G数].replace(/,/g, '')) || 0,
+                BB回数: colIdx1.BB !== -1 ? (parseInt(cells[colIdx1.BB].replace(/,/g, '')) || 0) : 0,
+                RB回数: colIdx1.RB !== -1 ? (parseInt(cells[colIdx1.RB].replace(/,/g, '')) || 0) : 0,
+                ART回数: colIdx1.ART !== -1 ? (parseInt(cells[colIdx1.ART].replace(/,/g, '')) || 0) : 0,
+                最高出玉: 0 // デフォルト
+            });
+        }
+    });
+
+    // Data2 のパース（最高出玉）
+    if (html2) {
+        const $2 = cheerio.load(html2);
+        let colIdx2 = { 台番: -1, 最高出玉: -1 };
+        
+        const headerRow2 = $2('tr:has(td.table_head)').first();
+        headerRow2.find('td').each((idx, cell) => {
+            const text = $2(cell).text().trim();
+            if (text.includes('台番')) colIdx2.台番 = idx;
+            else if (text.includes('最高') || text.includes('差枚') || text.includes('出玉')) colIdx2.最高出玉 = idx;
+        });
+
+        if (colIdx2.台番 !== -1 && colIdx2.最高出玉 !== -1) {
+            $2('tr').each((_, tr) => {
+                const $tr = $2(tr);
+                if ($tr.find('.table_head, .table_foot').length > 0) return;
+                
+                const cells = $tr.find('td').map((_, td) => $2(td).text().trim()).get();
+                if (cells.length < 2) return;
+
+                const 台番 = parseInt(cells[colIdx2.台番].replace(/,/g, ''));
+                if (!isNaN(台番)) {
+                    const maxOut = parseInt(cells[colIdx2.最高出玉].replace(/,/g, ''));
+                    const targetRow = rows.find(r => r.台番 === 台番);
+                    if (targetRow && !isNaN(maxOut)) {
+                        targetRow.最高出玉 = maxOut;
+                    }
+                }
             });
         }
     }
@@ -274,8 +318,11 @@ function parseDataTable(html, modelName) {
 /**
  * メイン: HTTP GETでd-deltanetから全機種のリアルタイムデータを取得
  */
-async function scrapeDDelta(onProgress) {
-    console.log('[DDelta] HTTP GET方式でリアルタイムデータの取得を開始します...');
+async function scrapeDDelta(onProgress, storeConfig = null) {
+    if (!storeConfig) {
+        storeConfig = config.stores.find(s => s.id === 'tachikawa');
+    }
+    console.log(`[DDelta] HTTP GET方式でリアルタイムデータの取得を開始します (${storeConfig.name})...`);
     
     // セッション初期化: トップページ→Cookieポリシー承諾
     sessionCookies = '';
@@ -288,7 +335,7 @@ async function scrapeDDelta(onProgress) {
     const results = [];
     
     // Step 1: ポータルから全機種リスト取得
-    const models = await fetchModelList();
+    const models = await fetchModelList(storeConfig);
     
     if (models.length === 0) {
         console.log('[DDelta] ❌ 機種リストが空です。');
@@ -347,17 +394,12 @@ async function scrapeDDelta(onProgress) {
 // 設定推測ロジック（変更なし）
 // ========================================
 
-function getProbThresholds(modelName) {
-    if (modelName.includes('ジャグラー')) return { s6: 120, s5: 127, s4: 135, type: 'A' };
-    if (modelName.includes('ハナハナ')) return { s6: 135, s5: 144, s4: 153, type: 'A' };
-    if (modelName.includes('北斗の拳')) return { s6: 235, s5: 250, s4: 280, type: 'AT' }; 
-    if (modelName.includes('ヴァルヴレイヴ')) return { s6: 250, s5: 270, s4: 290, type: 'AT' };
-    if (modelName.includes('モンキーターン')) return { s6: 220, s5: 240, s4: 255, type: 'AT' };
-    if (modelName.includes('カバネリ')) return { s6: 190, s5: 210, s4: 230, type: 'AT' };
-    if (modelName.includes('沖ドキ')) return { s6: 230, s5: 250, s4: 280, type: 'AT' };
-    if (modelName.includes('炎炎ノ消防隊')) return { s6: 200, s5: 215, s4: 230, type: 'AT' };
-    if (modelName.includes('からくりサーカス')) return { s6: 250, s5: 270, s4: 290, type: 'AT' };
-    return { s6: 220, s5: 240, s4: 260, type: 'AT' };
+// 設定推測のハードコーディングは撤廃し、machine_db.jsonから読み込む形へ移行
+function getDefaultThresholds() {
+    return {
+        probThresholds: { s6: 220, s5: 240, s4: 260 },
+        hitCols: ['BB', 'RB', 'ART']
+    };
 }
 
 function analyzeRealtimeData(machines) {
@@ -374,8 +416,18 @@ function analyzeRealtimeData(machines) {
             continue;
         }
         const specs = db[m.機種名] || getDefaultSpecs();
-        const thresholds = getProbThresholds(m.機種名);
-        const totalHits = m.BB回数 + m.RB回数 + m.ART回数;
+        const thresholds = (db[m.機種名] && db[m.機種名].probThresholds) ? db[m.機種名].probThresholds : getDefaultThresholds().probThresholds;
+        
+        let totalHits = 0;
+        const hitCols = (db[m.機種名] && db[m.機種名].hitCols) ? db[m.機種名].hitCols : getDefaultThresholds().hitCols;
+        if (hitCols.includes('BB') || hitCols.includes('AT')) totalHits += m.BB回数; // データカウンタによりBB列にAT回数が入る場合も考慮
+        if (hitCols.includes('RB')) totalHits += m.RB回数;
+        if (hitCols.includes('ART')) totalHits += m.ART回数;
+
+        // モンキーターン等、BBがないがARTに入っているケースのフェイルセーフ
+        if (totalHits === 0 && (m.BB回数 + m.RB回数 + m.ART回数) > 0) {
+            totalHits = m.BB回数 + m.RB回数 + m.ART回数;
+        }
         
         if (totalHits === 0) {
             m.実質確率 = '-'; m.推定設定 = 0; m.信頼度スコア = 0; m.信頼度ラベル = '-';
@@ -385,7 +437,9 @@ function analyzeRealtimeData(machines) {
         }
 
         const actualProb = m.G数 / totalHits;
+        const calcMethod = hitCols.join('+');
         m.実質確率 = `1/${actualProb.toFixed(1)}`;
+        m.計算方式 = calcMethod;
 
         let estimatedSetting = 1;
         if (actualProb <= thresholds.s6) estimatedSetting = 6;
@@ -423,8 +477,19 @@ function analyzeRealtimeData(machines) {
 
 if (require.main === module) {
     (async () => {
-        const results = await scrapeDDelta();
-        console.log(`\n=== リアルタイム抽出結果 (全${results.length}台) ===`);
+        const args = process.argv.slice(2);
+        let storeId = 'tachikawa';
+        for (let i = 0; i < args.length; i++) {
+            if (args[i] === '--store' && args[i+1]) storeId = args[++i];
+        }
+        const storeConfig = config.stores.find(s => s.id === storeId);
+        if (!storeConfig) {
+            console.error(`[Scraper] エラー: 指定された店舗ID '${storeId}' がconfig.jsonに見つかりません。`);
+            process.exit(1);
+        }
+
+        const results = await scrapeDDelta(null, storeConfig);
+        console.log(`\n=== リアルタイム抽出結果 (全${results.length}台 - ${storeConfig.name}) ===`);
         const high = results.filter(m => m.推定設定 >= 5);
         console.log(`設定5以上: ${high.length}台`);
         console.log(JSON.stringify(high.slice(0, 10), null, 2));

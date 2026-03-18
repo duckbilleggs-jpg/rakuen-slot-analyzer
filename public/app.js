@@ -13,7 +13,10 @@ let allMachineNames = [];
 // ============================
 // 初期化
 // ============================
-document.addEventListener('DOMContentLoaded', () => {
+let availableStores = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadStores();
   switchTab('past'); // 初期表示タブ
   loadConfigUI();
   // 5分ごとに自動リフレッシュ
@@ -24,7 +27,41 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 5 * 60 * 1000);
   // 閉店カウントダウン更新
   setInterval(updateCountdown, 30000);
+
+  // 店舗切り替えイベント
+  document.getElementById('hallSelect').addEventListener('change', () => {
+    if (activeTab === 'past') fetchPastData();
+    else if (activeTab === 'realtime') fetchRealtimeData();
+    else if (activeTab === 'forecast') fetchForecastData();
+  });
 });
+
+async function loadStores() {
+  try {
+    const res = await fetch('/api/stores');
+    availableStores = await res.json();
+    const select = document.getElementById('hallSelect');
+    select.innerHTML = '';
+    availableStores.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      select.appendChild(opt);
+    });
+  } catch (e) {
+    console.error('店舗情報の取得に失敗しました', e);
+  }
+}
+
+// 店舗ID取得ヘルパー
+function getSelectedStoreId() {
+  const select = document.getElementById('hallSelect');
+  return select ? select.value : 'tachikawa';
+}
+
+function getStoreConfig(id) {
+  return availableStores.find(s => s.id === id) || null;
+}
 
 // ============================
 // タブ切り替え
@@ -72,7 +109,10 @@ let pastSelectedDate = ''; // 選択中の日付
 async function fetchPastData(dateKey) {
   setLoading(true);
   try {
-    const url = dateKey ? `/api/high-setting?date=${dateKey}` : '/api/high-setting';
+    const storeId = getSelectedStoreId();
+    let url = `/api/high-setting?store=${storeId}`;
+    if (dateKey) url += `&date=${dateKey}`;
+    
     const res = await fetch(url);
     if (activeTab !== 'past') return;
     const data = await res.json();
@@ -126,7 +166,8 @@ async function fetchRealtimeData() {
   // 既にデータがあれば画面を消さない（初回のみローディング表示）
   if (currentData.realtime.length === 0) setLoading(true);
   try {
-    const res = await fetch('/api/realtime');
+    const storeId = getSelectedStoreId();
+    const res = await fetch(`/api/realtime?store=${storeId}`);
     if (activeTab !== 'realtime') return;
     const data = await res.json();
 
@@ -198,11 +239,12 @@ let forecastEndDate = '';
 async function fetchForecastData() {
   setLoading(true);
   try {
-    let url = '/api/forecast';
+    const storeId = getSelectedStoreId();
+    let url = `/api/forecast?store=${storeId}`;
     const params = [];
     if (forecastStartDate) params.push(`startDate=${forecastStartDate}`);
     if (forecastEndDate) params.push(`endDate=${forecastEndDate}`);
-    if (params.length) url += '?' + params.join('&');
+    if (params.length) url += '&' + params.join('&');
 
     const res = await fetch(url);
     if (activeTab !== 'forecast') return;
@@ -346,6 +388,9 @@ function renderRealtimeTable() {
     const tbody = document.getElementById('tableBodyRealtime');
     const empty = document.getElementById('emptyState');
     
+    const storeId = getSelectedStoreId();
+    const storeCfg = getStoreConfig(storeId);
+
     let filtered = [...currentData.realtime];
 
     // 設定フィルタ
@@ -365,7 +410,12 @@ function renderRealtimeTable() {
     switch (sortKey) {
         case 'ev': filtered.sort((a, b) => (b.期待値円 || 0) - (a.期待値円 || 0)); break;
         case 'setting': filtered.sort((a, b) => (b.推定設定 || 0) - (a.推定設定 || 0) || (b.期待値円 || 0) - (a.期待値円 || 0)); break;
-        case 'prob': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
+        case 'confidence': filtered.sort((a, b) => (b.信頼度スコア || 0) - (a.信頼度スコア || 0) || (b.期待値円 || 0) - (a.期待値円 || 0)); break;
+        case 'prob': filtered.sort((a, b) => {
+            const pa = parseFloat((a.実質確率 || '1/9999').split('/')[1]);
+            const pb = parseFloat((b.実質確率 || '1/9999').split('/')[1]);
+            return pa - pb;
+        }); break;
         case 'games': filtered.sort((a, b) => (b.G数 || 0) - (a.G数 || 0)); break;
     }
 
@@ -402,9 +452,15 @@ function renderRealtimeTable() {
         <tr class="${settingClass}">
             <td><span class="badge ${badgeClass}">${badgeText}</span></td>
             <td><span class="confidence ${confClass}">${m.信頼度ラベル || '-'}</span></td>
-            <td class="machine-name" title="${m.機種名}">${m.機種名}</td>
+            <td class="machine-name" title="${m.機種名}">
+                <a href="https://www.d-deltanet.com/pc/D0301.do?pmc=${storeCfg ? storeCfg.ddelta.pmc : '22021030'}&clc=${storeCfg ? storeCfg.ddelta.clc : '03'}&urt=${storeCfg ? storeCfg.ddelta.urt : '2173'}&pan=1" target="_blank" rel="noopener" style="color:var(--text-primary); text-decoration:underline;">${m.機種名}</a>
+            </td>
             <td>${m.台番}</td>
-            <td class="td-num"><strong>${m.実質確率 || '-'}</strong></td>
+            <td class="td-num">
+                <strong>${m.実質確率 || '-'}</strong><br>
+                <span style="font-size:10px; color:var(--text-secondary);">${m.計算方式 ? '(' + m.計算方式 + ')' : ''}</span>
+            </td>
+            <td class="td-num ${m.最高出玉 >= 0 ? 'td-positive' : 'td-negative'}">${m.最高出玉 ? m.最高出玉.toLocaleString() : '-'}</td>
             <td class="td-num">${m.BB回数 || 0}/${m.RB回数 || 0}/${m.ART回数 || 0}</td>
             <td class="td-num">${m.G数 ? m.G数.toLocaleString() : '0'}</td>
             <td class="td-num">${m.残りG数 ? m.残りG数.toLocaleString() : '-'}</td>
@@ -513,7 +569,8 @@ async function showMachineDetail(machineNo, machineName) {
     modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
     try {
-        const params = [`machineNo=${machineNo}`];
+        const storeId = getSelectedStoreId();
+        const params = [`store=${storeId}`, `machineNo=${machineNo}`];
         if (forecastStartDate) params.push(`startDate=${forecastStartDate}`);
         if (forecastEndDate) params.push(`endDate=${forecastEndDate}`);
         const res = await fetch(`/api/machine-history?${params.join('&')}`);
@@ -551,7 +608,10 @@ async function showMachineDetail(machineNo, machineName) {
                 </thead>
                 <tbody>
         `;
-        for (const h of data.history) {
+        // 日付が新しい順にソート (YYYY-MM-DD 形式を想定)
+        const sortedHistory = [...data.history].sort((a, b) => new Date(b.日付) - new Date(a.日付));
+
+        for (const h of sortedHistory) {
             const bgColor = h.推定設定 === '⑥' ? 'rgba(251,191,36,0.15)'
                          : h.推定設定 === '⑤' ? 'rgba(99,102,241,0.12)' : 'transparent';
             const settingColor = h.推定設定 === '⑥' ? '#fbbf24'

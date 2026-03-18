@@ -62,12 +62,12 @@ let realtimeProgress = { current: 0, total: 0, modelName: '' };
 // ============================
 
 /** 最新の利用可能データを取得（今日→前日→前々日とフォールバック） */
-async function getLatestData() {
+async function getLatestData(storeId) {
   for (let i = 0; i < 3; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const data = await loadDayData(key);
+    const data = await loadDayData(key, storeId);
     if (data && data.machines && data.machines.length > 0) {
       return { data, dateKey: key };
     }
@@ -76,14 +76,19 @@ async function getLatestData() {
 }
 
 /** データが古いかチェック（6時間以上前 or 無い場合） */
-async function isDataStale() {
-  const { data, dateKey } = await getLatestData();
+async function isDataStale(storeId) {
+  const { data, dateKey } = await getLatestData(storeId);
   // データ自体が無い場合は古いと判定
   if (!data) return true;
   if (!lastScrapeTime) return false;
   const elapsed = Date.now() - new Date(lastScrapeTime).getTime();
   return elapsed > 6 * 60 * 60 * 1000; // 6時間以上経過したら古い
 }
+
+app.get('/api/stores', (req, res) => {
+  const config = loadConfig();
+  res.json(config.stores || []);
+});
 
 app.get('/health', async (req, res) => {
   if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
@@ -98,18 +103,19 @@ app.get('/api/high-setting', async (req, res) => {
   try {
     let data, dateKey;
     const requestedDate = req.query.date; // YYYY-MM-DD
+    const storeId = req.query.store || 'tachikawa';
 
     if (requestedDate) {
       // 指定日のデータを取得
-      data = await loadDayData(requestedDate);
+      data = await loadDayData(requestedDate, storeId);
       dateKey = requestedDate;
     } else {
       // デフォルト: 最新データ
-      if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
+      if (!SCRAPING_DISABLED && await isDataStale(storeId) && scrapeStatus !== 'running') {
         console.log('[Auto] データが古いため自動スクレイプを開始(API Request)');
         runScrape();
       }
-      const latest = await getLatestData();
+      const latest = await getLatestData(storeId);
       data = latest.data;
       dateKey = latest.dateKey;
     }
@@ -138,7 +144,8 @@ app.get('/api/high-setting', async (req, res) => {
 /** 全台データ */
 app.get('/api/all', async (req, res) => {
   try {
-    const { data } = await getLatestData();
+    const storeId = req.query.store || 'tachikawa';
+    const { data } = await getLatestData(storeId);
     if (!data || !data.machines) {
       return res.json({ machines: [], lastScrape: lastScrapeTime, message: 'データがありません' });
     }
@@ -161,24 +168,6 @@ app.get('/api/all', async (req, res) => {
 /** リアルタイムデータ取得（d-deltanet） */
 app.get('/api/realtime', async (req, res) => {
     try {
-        console.log('[API] /api/realtime リクエスト受信');
-        
-        // キャッシュが空ならMongoDBから再読み込み
-        if (cachedRealtimeData.length === 0) {
-            try {
-                const cached = await RealtimeCache.findOne({ key: 'latest' });
-                if (cached && cached.machines && cached.machines.length > 0) {
-                    cachedRealtimeData = cached.machines;
-                    lastRealtimeFetch = cached.timestamp ? cached.timestamp.toISOString() : null;
-                    console.log(`[API] MongoDBからリアルタイムデータ復元: ${cachedRealtimeData.length}台`);
-                }
-            } catch (dbErr) {
-                console.log('[API] MongoDB読み込み失敗:', dbErr.message);
-            }
-        }
-
-        // Renderクラウド環境ではd-deltanetが403を返すためGitHub Actionsで取得
-        // ローカル環境では手動ボタン or cronジョブで取得可能
 
         res.json({
             machines: cachedRealtimeData,
@@ -236,7 +225,10 @@ app.get('/api/forecast', async (req, res) => {
             dateEnd = yesterday.toISOString().split('T')[0];
         }
 
+        const storeId = req.query.store || 'tachikawa';
+
         let records = await Machine.find({
+            storeId: storeId,
             dateKey: { $gte: dateLimit, $lte: dateEnd },
             G数: { $gte: 3000 }
         }).lean();
@@ -330,10 +322,13 @@ app.get('/api/machine-history', async (req, res) => {
             dateEnd = d.toISOString().split('T')[0];
         }
 
+        const storeId = req.query.store || 'tachikawa';
+
         const records = await Machine.find({
+            storeId: storeId,
             台番: machineNo,
             dateKey: { $gte: dateLimit, $lte: dateEnd }
-        }).sort({ dateKey: 1 }).lean();
+        }).sort({ dateKey: -1 }).lean();
 
         const db = loadDB();
         const history = records.map(r => {

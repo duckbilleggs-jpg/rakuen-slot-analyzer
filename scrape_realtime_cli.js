@@ -5,9 +5,24 @@
 require('dotenv').config();
 const { connectDB, RealtimeCache } = require('./database');
 const { scrapeDDelta } = require('./scraper_ddelta');
+const fs = require('fs');
+const path = require('path');
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
 (async () => {
-    console.log('[CLI] リアルタイムスクレイプ開始...');
+    const args = process.argv.slice(2);
+    let storeId = 'tachikawa';
+    for (let i = 0; i < args.length; i++) {
+        if (args[i] === '--store' && args[i+1]) storeId = args[++i];
+    }
+    
+    const storeConfig = config.stores.find(s => s.id === storeId);
+    if (!storeConfig) {
+        console.error(`[CLI] エラー: 指定された店舗ID '${storeId}' がconfig.jsonに見つかりません。`);
+        process.exit(1);
+    }
+
+    console.log(`[CLI] リアルタイムスクレイプ開始 (${storeConfig.name})...`);
     console.log(`[CLI] 時刻: ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`);
     
     try {
@@ -20,18 +35,19 @@ const { scrapeDDelta } = require('./scraper_ddelta');
             if (current % 5 === 0 || current === 1) {
                 console.log(`[CLI] 進捗: ${current}/${total} - ${modelName}`);
             }
-        });
+        }, storeConfig);
         
         console.log(`[CLI] スクレイプ完了: ${data.length}台`);
         
         if (data.length > 0) {
             // MongoDBに保存
+            const cacheKey = `latest_${storeId}`;
             await RealtimeCache.findOneAndUpdate(
-                { key: 'latest' },
+                { key: cacheKey },
                 { machines: data, timestamp: new Date().toISOString() },
                 { upsert: true }
             );
-            console.log(`[CLI] MongoDBに${data.length}台のリアルタイムデータを保存完了`);
+            console.log(`[CLI] MongoDBに${data.length}台のリアルタイムデータを保存完了 (キー: ${cacheKey})`);
             
             // 設定5以上の台をサマリー表示
             const high = data.filter(m => m.推定設定 >= 5);

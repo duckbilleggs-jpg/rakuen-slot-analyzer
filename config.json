@@ -25,8 +25,29 @@
     "coinRate": 46,
     "inPerGame": 3
   },
+  "stores": [
+    {
+      "id": "tachikawa",
+      "name": "楽園 立川",
+      "minrepoTag": "楽園立川店",
+      "ddelta": {
+        "pmc": "22021030",
+        "clc": "03",
+        "urt": "2173"
+      }
+    },
+    {
+      "id": "sagamihara",
+      "name": "楽園 相模原",
+      "minrepoTag": "楽園相模原店",
+      "ddelta": {
+        "pmc": "22021033",
+        "clc": "03",
+        "urt": "2173"
+      }
+    }
+  ],
   "scrape": {
-    "storeTag": "楽園立川店",
     "baseUrl": "https://min-repo.com",
     "requestIntervalMs": 1000
   }

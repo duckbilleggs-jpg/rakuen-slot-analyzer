@@ -32,6 +32,7 @@ async function connectDB() {
 // ============================
 
 const machineSchema = new mongoose.Schema({
+  storeId: { type: String, default: 'tachikawa', index: true }, // 店舗識別子
   dateKey: { type: String, required: true, index: true }, // "YYYY-MM-DD" etc
   reportId: { type: String }, // min-repo url ID
   dateRaw: { type: String }, // "3/13(金)" etc
@@ -42,14 +43,14 @@ const machineSchema = new mongoose.Schema({
   出率: { type: Number, default: 0 }
 }, { timestamps: false, collection: 'machines' });
 
-// 複合インデックス: 同じ日・同じ台番の重複防止用
-machineSchema.index({ dateKey: 1, 台番: 1 }, { unique: true });
+// 複合インデックス: 同じ店舗・同じ日・同じ台番の重複防止用
+machineSchema.index({ storeId: 1, dateKey: 1, 台番: 1 }, { unique: true });
 
 const Machine = mongoose.models.Machine || mongoose.model('Machine', machineSchema);
 
 // リアルタイムデータのキャッシュ用スキーマ
 const realtimeCacheSchema = new mongoose.Schema({
-  key: { type: String, default: 'latest', unique: true },
+  key: { type: String, default: 'latest_tachikawa', unique: true }, // 店舗ごとのキャッシュキー (latest_tachikawa, latest_sagamiharaなど)
   machines: { type: mongoose.Schema.Types.Mixed, default: [] },
   timestamp: { type: Date, default: Date.now }
 }, { timestamps: false, collection: 'realtime_cache' });

@@ -182,7 +182,12 @@ function parsePayoutTable(html) {
 
 /** デフォルトスペック（取得失敗時） */
 function getDefaultSpecs() {
-  return { s1: 97.5, s2: 98.5, s3: 100.5, s4: 105.0, s5: 108.0, s6: 112.0 };
+  return { 
+    s1: 97.5, s2: 98.5, s3: 100.5, s4: 105.0, s5: 108.0, s6: 112.0,
+    type: 'AT',
+    hitCols: ['BB', 'RB', 'ART'],
+    probThresholds: { s6: 220, s5: 240, s4: 260 }
+  };
 }
 
 /**

@@ -32,10 +32,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /**
  * 店舗タグページから日付別URLリストを取得
+ * @param {number} maxDays
+ * @param {Object} storeConfig - { id, name, minrepoTag }
  * @returns {Array<{date:string, url:string}>}
  */
-async function fetchDateList(maxDays = 7) {
-  const tagUrl = `${config.scrape.baseUrl}/tag/${encodeURIComponent(config.scrape.storeTag)}/`;
+async function fetchDateList(maxDays = 7, storeConfig) {
+  const tagUrl = `${config.scrape.baseUrl}/tag/${encodeURIComponent(storeConfig.minrepoTag)}/`;
   const html = await fetch(tagUrl);
   const $ = cheerio.load(html);
   const results = [];
@@ -89,10 +91,12 @@ async function fetchDayData(url) {
 
 /**
  * 直近N日分のデータをスクレイプして保存
+ * @param {number} days
+ * @param {Object} storeConfig
  */
-async function scrapeRecent(days = 1) {
-  console.log(`[Scraper] ${days}日分のデータを取得開始...`);
-  const dates = await fetchDateList(days);
+async function scrapeRecent(days = 1, storeConfig) {
+  console.log(`[Scraper] ${storeConfig.name} (${storeConfig.minrepoTag}) ${days}日分のデータを取得開始...`);
+  const dates = await fetchDateList(days, storeConfig);
   console.log(`[Scraper] ${dates.length}件の日付を検出`);
 
   const allData = {};
@@ -114,7 +118,7 @@ async function scrapeRecent(days = 1) {
       if (rows.length > 0) {
         const ops = rows.map(m => ({
           updateOne: {
-            filter: { dateKey, 台番: m.台番 },
+            filter: { storeId: storeConfig.id, dateKey, 台番: m.台番 },
             update: {
               $set: {
                 reportId: d.id,
@@ -129,7 +133,7 @@ async function scrapeRecent(days = 1) {
           }
         }));
         await Machine.bulkWrite(ops);
-        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了`);
+        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了 (${storeConfig.name})`);
       }
     } catch (err) {
       console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);
@@ -144,8 +148,8 @@ async function scrapeRecent(days = 1) {
 /**
  * 今日のデータだけスクレイプ
  */
-async function scrapeToday() {
-  return scrapeRecent(1);
+async function scrapeToday(storeConfig) {
+  return scrapeRecent(1, storeConfig);
 }
 
 /** 日付文字テキストを YYYY-MM-DD に変換 */
@@ -161,9 +165,9 @@ function normalizeDateKey(text) {
 }
 
 /** 保存済みデータを読み込み (MongoDB優先、なければローカルファイル) */
-async function loadDayData(dateKey) {
+async function loadDayData(dateKey, storeId = 'tachikawa') {
   try {
-    const docs = await Machine.find({ dateKey }).lean();
+    const docs = await Machine.find({ dateKey, storeId }).lean();
     if (docs && docs.length > 0) {
       // 形式を { date, id, machines: [...] } に整えて返す
       const first = docs[0];
@@ -195,12 +199,27 @@ function todayKey() {
 if (require.main === module) {
   const { connectDB } = require('./database');
   const args = process.argv.slice(2);
-  const days = args.includes('--test') ? 1 : parseInt(args[0]) || 1;
+  let days = 1;
+  let testMode = false;
+  let storeId = 'tachikawa';
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--test') testMode = true;
+    else if (args[i] === '--store' && args[i+1]) storeId = args[++i];
+    else if (!isNaN(parseInt(args[i]))) days = parseInt(args[i]);
+  }
+  
+  const targetStore = config.stores.find(s => s.id === storeId);
+  if (!targetStore) {
+    console.error(`[Scraper] エラー: 指定された店舗ID '${storeId}' がconfig.jsonに見つかりません。`);
+    process.exit(1);
+  }
+
   connectDB().then(() => {
-    return scrapeRecent(days);
+    return scrapeRecent(testMode ? 1 : days, targetStore);
   }).then(data => {
     const total = Object.values(data).reduce((s, d) => s + d.machines.length, 0);
-    console.log(`[Scraper] 完了: 合計 ${total} 台のデータを取得`);
+    console.log(`[Scraper] 完了: 合計 ${total} 台のデータを取得 (${targetStore.name})`);
     process.exit(0);
   }).catch(err => {
     console.error('[Scraper] エラー:', err.message);

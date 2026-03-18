@@ -43,9 +43,15 @@ async function loadStores() {
     const container = document.getElementById('storeTabs');
     container.innerHTML = '';
     
-    availableStores.forEach((s, idx) => {
+    // localStorage から前回選択した店舗を復元
+    const savedStoreId = localStorage.getItem('selectedStoreId');
+    const defaultId = savedStoreId && availableStores.some(s => s.id === savedStoreId)
+      ? savedStoreId
+      : (availableStores[0] ? availableStores[0].id : 'tachikawa');
+    
+    availableStores.forEach(s => {
       const btn = document.createElement('button');
-      btn.className = `store-tab ${idx === 0 ? 'active' : ''}`;
+      btn.className = `store-tab ${s.id === defaultId ? 'active' : ''}`;
       btn.textContent = s.name;
       btn.dataset.id = s.id;
       btn.onclick = () => switchStore(s.id);
@@ -58,6 +64,9 @@ async function loadStores() {
 
 // 店舗切り替え
 function switchStore(storeId) {
+  // localStorage に選択を保存（リロード後も維持）
+  localStorage.setItem('selectedStoreId', storeId);
+  
   document.querySelectorAll('.store-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.id === storeId);
   });
@@ -71,7 +80,7 @@ function switchStore(storeId) {
 // 店舗ID取得ヘルパー
 function getSelectedStoreId() {
   const activeBtn = document.querySelector('.store-tab.active');
-  return activeBtn ? activeBtn.dataset.id : 'tachikawa';
+  return activeBtn ? activeBtn.dataset.id : (localStorage.getItem('selectedStoreId') || 'tachikawa');
 }
 
 function getStoreConfig(id) {

@@ -1,0 +1,929 @@
+[
+  {
+    "machineNumber": "0051",
+    "BIG": 16,
+    "REG": 9,
+    "totalGames": 5435,
+    "currentGames": 205,
+    "difference": 0,
+    "machineName": "ﾏｲｼﾞｬｸﾞﾗｰV"
+  },
+  {
+    "machineNumber": "0052",
+    "BIG": 33,
+    "REG": 28,
+    "totalGames": 7248,
+    "currentGames": 147,
+    "difference": 0,
+    "machineName": "ﾏｲｼﾞｬｸﾞﾗｰV"
+  },
+  {
+    "machineNumber": "0053",
+    "BIG": 13,
+    "REG": 12,
+    "totalGames": 4144,
+    "currentGames": 104,
+    "difference": 0,
+    "machineName": "ﾏｲｼﾞｬｸﾞﾗｰV"
+  },
+  {
+    "machineNumber": "0055",
+    "BIG": 31,
+    "REG": 30,
+    "totalGames": 7993,
+    "currentGames": 71,
+    "difference": 0,
+    "machineName": "ﾏｲｼﾞｬｸﾞﾗｰV"
+  },
+  {
+    "machineNumber": "0056",
+    "BIG": 9,
+    "REG": 6,
+    "totalGames": 2576,
+    "currentGames": 428,
+    "difference": 0,
+    "machineName": "ﾏｲｼﾞｬｸﾞﾗｰV"
+  },
+  {
+    "machineNumber": "0057",
+    "BIG": 30,
+    "REG": 23,
+    "totalGames": 7386,
+    "currentGames": 176,
+    "difference": 0,
+    "machineName": "ﾏｲｼﾞｬｸﾞﾗｰV"
+  },
+  {
+    "machineNumber": "0121",
+    "BIG": 0,
+    "REG": 13,
+    "totalGames": 7249,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "LﾓﾝｷｰﾀｰﾝV"
+  },
+  {
+    "machineNumber": "0122",
+    "BIG": 0,
+    "REG": 3,
+    "totalGames": 829,
+    "currentGames": 4,
+    "difference": 0,
+    "machineName": "LﾓﾝｷｰﾀｰﾝV"
+  },
+  {
+    "machineNumber": "0123",
+    "BIG": 0,
+    "REG": 6,
+    "totalGames": 3209,
+    "currentGames": 262,
+    "difference": 0,
+    "machineName": "LﾓﾝｷｰﾀｰﾝV"
+  },
+  {
+    "machineNumber": "0125",
+    "BIG": 0,
+    "REG": 6,
+    "totalGames": 2142,
+    "currentGames": 42,
+    "difference": 0,
+    "machineName": "LﾓﾝｷｰﾀｰﾝV"
+  },
+  {
+    "machineNumber": "0126",
+    "BIG": 0,
+    "REG": 4,
+    "totalGames": 1855,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "LﾓﾝｷｰﾀｰﾝV"
+  },
+  {
+    "machineNumber": "0127",
+    "BIG": 0,
+    "REG": 6,
+    "totalGames": 4546,
+    "currentGames": 2,
+    "difference": 0,
+    "machineName": "LﾓﾝｷｰﾀｰﾝV"
+  },
+  {
+    "machineNumber": "0001",
+    "BIG": 4,
+    "REG": 7,
+    "totalGames": 1117,
+    "currentGames": 77,
+    "difference": 0,
+    "machineName": "沖ﾄﾞｷ!BLACK"
+  },
+  {
+    "machineNumber": "0002",
+    "BIG": 8,
+    "REG": 8,
+    "totalGames": 1016,
+    "currentGames": 69,
+    "difference": 0,
+    "machineName": "沖ﾄﾞｷ!BLACK"
+  },
+  {
+    "machineNumber": "0003",
+    "BIG": 4,
+    "REG": 6,
+    "totalGames": 1399,
+    "currentGames": 233,
+    "difference": 0,
+    "machineName": "沖ﾄﾞｷ!BLACK"
+  },
+  {
+    "machineNumber": "0005",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 363,
+    "currentGames": 363,
+    "difference": 0,
+    "machineName": "沖ﾄﾞｷ!BLACK"
+  },
+  {
+    "machineNumber": "0006",
+    "BIG": 1,
+    "REG": 3,
+    "totalGames": 298,
+    "currentGames": 202,
+    "difference": 0,
+    "machineName": "沖ﾄﾞｷ!BLACK"
+  },
+  {
+    "machineNumber": "0007",
+    "BIG": 3,
+    "REG": 3,
+    "totalGames": 223,
+    "currentGames": 33,
+    "difference": 0,
+    "machineName": "沖ﾄﾞｷ!BLACK"
+  },
+  {
+    "machineNumber": "0031",
+    "BIG": 27,
+    "REG": 20,
+    "totalGames": 5907,
+    "currentGames": 88,
+    "difference": 0,
+    "machineName": "ﾈｵｱｲﾑｼﾞｬｸﾞﾗｰEX"
+  },
+  {
+    "machineNumber": "0032",
+    "BIG": 0,
+    "REG": 1,
+    "totalGames": 594,
+    "currentGames": 114,
+    "difference": 0,
+    "machineName": "ﾈｵｱｲﾑｼﾞｬｸﾞﾗｰEX"
+  },
+  {
+    "machineNumber": "0033",
+    "BIG": 10,
+    "REG": 8,
+    "totalGames": 3087,
+    "currentGames": 276,
+    "difference": 0,
+    "machineName": "ﾈｵｱｲﾑｼﾞｬｸﾞﾗｰEX"
+  },
+  {
+    "machineNumber": "0035",
+    "BIG": 4,
+    "REG": 2,
+    "totalGames": 1259,
+    "currentGames": 101,
+    "difference": 0,
+    "machineName": "ﾈｵｱｲﾑｼﾞｬｸﾞﾗｰEX"
+  },
+  {
+    "machineNumber": "0036",
+    "BIG": 34,
+    "REG": 17,
+    "totalGames": 6601,
+    "currentGames": 103,
+    "difference": 0,
+    "machineName": "ﾈｵｱｲﾑｼﾞｬｸﾞﾗｰEX"
+  },
+  {
+    "machineNumber": "0037",
+    "BIG": 10,
+    "REG": 10,
+    "totalGames": 3443,
+    "currentGames": 441,
+    "difference": 0,
+    "machineName": "ﾈｵｱｲﾑｼﾞｬｸﾞﾗｰEX"
+  },
+  {
+    "machineNumber": "0151",
+    "BIG": 0,
+    "REG": 1,
+    "totalGames": 1385,
+    "currentGames": 335,
+    "difference": 0,
+    "machineName": "L北斗 転生の章2"
+  },
+  {
+    "machineNumber": "0152",
+    "BIG": 0,
+    "REG": 2,
+    "totalGames": 1010,
+    "currentGames": 255,
+    "difference": 0,
+    "machineName": "L北斗 転生の章2"
+  },
+  {
+    "machineNumber": "0153",
+    "BIG": 0,
+    "REG": 1,
+    "totalGames": 451,
+    "currentGames": 50,
+    "difference": 0,
+    "machineName": "L北斗 転生の章2"
+  },
+  {
+    "machineNumber": "0155",
+    "BIG": 0,
+    "REG": 2,
+    "totalGames": 1370,
+    "currentGames": 192,
+    "difference": 0,
+    "machineName": "L北斗 転生の章2"
+  },
+  {
+    "machineNumber": "0156",
+    "BIG": 0,
+    "REG": 3,
+    "totalGames": 1741,
+    "currentGames": 131,
+    "difference": 0,
+    "machineName": "L北斗 転生の章2"
+  },
+  {
+    "machineNumber": "0157",
+    "BIG": 0,
+    "REG": 12,
+    "totalGames": 7084,
+    "currentGames": 46,
+    "difference": 0,
+    "machineName": "L北斗 転生の章2"
+  },
+  {
+    "machineNumber": "0182",
+    "BIG": 2,
+    "REG": 3,
+    "totalGames": 2033,
+    "currentGames": 67,
+    "difference": 0,
+    "machineName": "L革命機ｳﾞｧﾙｳﾞﾚｲｳﾞ2"
+  },
+  {
+    "machineNumber": "0183",
+    "BIG": 28,
+    "REG": 2,
+    "totalGames": 4906,
+    "currentGames": 113,
+    "difference": 0,
+    "machineName": "L革命機ｳﾞｧﾙｳﾞﾚｲｳﾞ2"
+  },
+  {
+    "machineNumber": "0185",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 18,
+    "currentGames": 18,
+    "difference": 0,
+    "machineName": "L革命機ｳﾞｧﾙｳﾞﾚｲｳﾞ2"
+  },
+  {
+    "machineNumber": "0186",
+    "BIG": 1,
+    "REG": 0,
+    "totalGames": 602,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "L革命機ｳﾞｧﾙｳﾞﾚｲｳﾞ2"
+  },
+  {
+    "machineNumber": "0187",
+    "BIG": 24,
+    "REG": 4,
+    "totalGames": 2811,
+    "currentGames": 2,
+    "difference": 0,
+    "machineName": "L革命機ｳﾞｧﾙｳﾞﾚｲｳﾞ2"
+  },
+  {
+    "machineNumber": "0188",
+    "BIG": 17,
+    "REG": 1,
+    "totalGames": 2136,
+    "currentGames": 2,
+    "difference": 0,
+    "machineName": "L革命機ｳﾞｧﾙｳﾞﾚｲｳﾞ2"
+  },
+  {
+    "machineNumber": "0161",
+    "BIG": 11,
+    "REG": 3,
+    "totalGames": 825,
+    "currentGames": 133,
+    "difference": 0,
+    "machineName": "Lｽﾏｽﾛ北斗"
+  },
+  {
+    "machineNumber": "0162",
+    "BIG": 10,
+    "REG": 3,
+    "totalGames": 1444,
+    "currentGames": 433,
+    "difference": 0,
+    "machineName": "Lｽﾏｽﾛ北斗"
+  },
+  {
+    "machineNumber": "0163",
+    "BIG": 8,
+    "REG": 3,
+    "totalGames": 1714,
+    "currentGames": 178,
+    "difference": 0,
+    "machineName": "Lｽﾏｽﾛ北斗"
+  },
+  {
+    "machineNumber": "0165",
+    "BIG": 87,
+    "REG": 15,
+    "totalGames": 6898,
+    "currentGames": 34,
+    "difference": 0,
+    "machineName": "Lｽﾏｽﾛ北斗"
+  },
+  {
+    "machineNumber": "0166",
+    "BIG": 46,
+    "REG": 19,
+    "totalGames": 6353,
+    "currentGames": 19,
+    "difference": 0,
+    "machineName": "Lｽﾏｽﾛ北斗"
+  },
+  {
+    "machineNumber": "0167",
+    "BIG": 107,
+    "REG": 17,
+    "totalGames": 7304,
+    "currentGames": 10,
+    "difference": 0,
+    "machineName": "Lｽﾏｽﾛ北斗"
+  },
+  {
+    "machineNumber": "0168",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 388,
+    "currentGames": 2,
+    "difference": 0,
+    "machineName": "L新鬼武者3"
+  },
+  {
+    "machineNumber": "0170",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 1000,
+    "currentGames": 102,
+    "difference": 0,
+    "machineName": "L新鬼武者3"
+  },
+  {
+    "machineNumber": "0171",
+    "BIG": 0,
+    "REG": 11,
+    "totalGames": 3369,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "L新鬼武者3"
+  },
+  {
+    "machineNumber": "0172",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 528,
+    "currentGames": 4,
+    "difference": 0,
+    "machineName": "L新鬼武者3"
+  },
+  {
+    "machineNumber": "0173",
+    "BIG": 0,
+    "REG": 4,
+    "totalGames": 2045,
+    "currentGames": 157,
+    "difference": 0,
+    "machineName": "L新鬼武者3"
+  },
+  {
+    "machineNumber": "0175",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 2259,
+    "currentGames": 5,
+    "difference": 0,
+    "machineName": "L新鬼武者3"
+  },
+  {
+    "machineNumber": "0201",
+    "BIG": 0,
+    "REG": 20,
+    "totalGames": 6054,
+    "currentGames": 51,
+    "difference": 0,
+    "machineName": "L甲鉄城のｶﾊﾞﾈﾘ海門決戦"
+  },
+  {
+    "machineNumber": "0202",
+    "BIG": 0,
+    "REG": 15,
+    "totalGames": 5031,
+    "currentGames": 3,
+    "difference": 0,
+    "machineName": "L甲鉄城のｶﾊﾞﾈﾘ海門決戦"
+  },
+  {
+    "machineNumber": "0203",
+    "BIG": 0,
+    "REG": 22,
+    "totalGames": 7133,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "L甲鉄城のｶﾊﾞﾈﾘ海門決戦"
+  },
+  {
+    "machineNumber": "0205",
+    "BIG": 0,
+    "REG": 23,
+    "totalGames": 8035,
+    "currentGames": 301,
+    "difference": 0,
+    "machineName": "L甲鉄城のｶﾊﾞﾈﾘ海門決戦"
+  },
+  {
+    "machineNumber": "0206",
+    "BIG": 0,
+    "REG": 26,
+    "totalGames": 9173,
+    "currentGames": 2,
+    "difference": 0,
+    "machineName": "L甲鉄城のｶﾊﾞﾈﾘ海門決戦"
+  },
+  {
+    "machineNumber": "0207",
+    "BIG": 0,
+    "REG": 19,
+    "totalGames": 7616,
+    "currentGames": 93,
+    "difference": 0,
+    "machineName": "L甲鉄城のｶﾊﾞﾈﾘ海門決戦"
+  },
+  {
+    "machineNumber": "0208",
+    "BIG": 0,
+    "REG": 3,
+    "totalGames": 668,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "Lﾓﾝｽﾀｰﾊﾝﾀｰﾗｲｽﾞ"
+  },
+  {
+    "machineNumber": "0210",
+    "BIG": 0,
+    "REG": 1,
+    "totalGames": 931,
+    "currentGames": 28,
+    "difference": 0,
+    "machineName": "Lﾓﾝｽﾀｰﾊﾝﾀｰﾗｲｽﾞ"
+  },
+  {
+    "machineNumber": "0211",
+    "BIG": 0,
+    "REG": 2,
+    "totalGames": 1090,
+    "currentGames": 99,
+    "difference": 0,
+    "machineName": "Lﾓﾝｽﾀｰﾊﾝﾀｰﾗｲｽﾞ"
+  },
+  {
+    "machineNumber": "0212",
+    "BIG": 0,
+    "REG": 3,
+    "totalGames": 702,
+    "currentGames": 202,
+    "difference": 0,
+    "machineName": "Lﾓﾝｽﾀｰﾊﾝﾀｰﾗｲｽﾞ"
+  },
+  {
+    "machineNumber": "0213",
+    "BIG": 0,
+    "REG": 2,
+    "totalGames": 1811,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "Lﾓﾝｽﾀｰﾊﾝﾀｰﾗｲｽﾞ"
+  },
+  {
+    "machineNumber": "0215",
+    "BIG": 0,
+    "REG": 3,
+    "totalGames": 1950,
+    "currentGames": 49,
+    "difference": 0,
+    "machineName": "Lﾓﾝｽﾀｰﾊﾝﾀｰﾗｲｽﾞ"
+  },
+  {
+    "machineNumber": "0216",
+    "BIG": 0,
+    "REG": 2,
+    "totalGames": 1270,
+    "currentGames": 327,
+    "difference": 0,
+    "machineName": "Lからくりｻｰｶｽ"
+  },
+  {
+    "machineNumber": "0217",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 81,
+    "currentGames": 81,
+    "difference": 0,
+    "machineName": "Lからくりｻｰｶｽ"
+  },
+  {
+    "machineNumber": "0218",
+    "BIG": 0,
+    "REG": 2,
+    "totalGames": 1108,
+    "currentGames": 124,
+    "difference": 0,
+    "machineName": "Lからくりｻｰｶｽ"
+  },
+  {
+    "machineNumber": "0220",
+    "BIG": 0,
+    "REG": 3,
+    "totalGames": 1605,
+    "currentGames": 101,
+    "difference": 0,
+    "machineName": "Lからくりｻｰｶｽ"
+  },
+  {
+    "machineNumber": "0221",
+    "BIG": 0,
+    "REG": 6,
+    "totalGames": 2278,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "Lからくりｻｰｶｽ"
+  },
+  {
+    "machineNumber": "0222",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 739,
+    "currentGames": 5,
+    "difference": 0,
+    "machineName": "Lからくりｻｰｶｽ"
+  },
+  {
+    "machineNumber": "0223",
+    "BIG": 0,
+    "REG": 19,
+    "totalGames": 6636,
+    "currentGames": 18,
+    "difference": 0,
+    "machineName": "L東京喰種"
+  },
+  {
+    "machineNumber": "0225",
+    "BIG": 0,
+    "REG": 30,
+    "totalGames": 8303,
+    "currentGames": 14,
+    "difference": 0,
+    "machineName": "L東京喰種"
+  },
+  {
+    "machineNumber": "0226",
+    "BIG": 0,
+    "REG": 20,
+    "totalGames": 6998,
+    "currentGames": 135,
+    "difference": 0,
+    "machineName": "L東京喰種"
+  },
+  {
+    "machineNumber": "0227",
+    "BIG": 0,
+    "REG": 16,
+    "totalGames": 5884,
+    "currentGames": 135,
+    "difference": 0,
+    "machineName": "L東京喰種"
+  },
+  {
+    "machineNumber": "0228",
+    "BIG": 0,
+    "REG": 17,
+    "totalGames": 5498,
+    "currentGames": 16,
+    "difference": 0,
+    "machineName": "L東京喰種"
+  },
+  {
+    "machineNumber": "0230",
+    "BIG": 0,
+    "REG": 16,
+    "totalGames": 4924,
+    "currentGames": 15,
+    "difference": 0,
+    "machineName": "L東京喰種"
+  },
+  {
+    "machineNumber": "0081",
+    "BIG": 9,
+    "REG": 6,
+    "totalGames": 2380,
+    "currentGames": 309,
+    "difference": 0,
+    "machineName": "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS"
+  },
+  {
+    "machineNumber": "0082",
+    "BIG": 1,
+    "REG": 0,
+    "totalGames": 473,
+    "currentGames": 410,
+    "difference": 0,
+    "machineName": "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS"
+  },
+  {
+    "machineNumber": "0083",
+    "BIG": 6,
+    "REG": 5,
+    "totalGames": 1629,
+    "currentGames": 245,
+    "difference": 0,
+    "machineName": "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS"
+  },
+  {
+    "machineNumber": "0085",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 369,
+    "currentGames": 368,
+    "difference": 0,
+    "machineName": "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS"
+  },
+  {
+    "machineNumber": "0086",
+    "BIG": 2,
+    "REG": 0,
+    "totalGames": 601,
+    "currentGames": 314,
+    "difference": 0,
+    "machineName": "ｼﾞｬｸﾞﾗｰｶﾞｰﾙｽﾞSS"
+  },
+  {
+    "machineNumber": "0011",
+    "BIG": 6,
+    "REG": 3,
+    "totalGames": 2364,
+    "currentGames": 152,
+    "difference": 0,
+    "machineName": "ﾌｧﾝｷｰｼﾞｬｸﾞﾗｰ2KT"
+  },
+  {
+    "machineNumber": "0012",
+    "BIG": 9,
+    "REG": 0,
+    "totalGames": 1813,
+    "currentGames": 125,
+    "difference": 0,
+    "machineName": "ﾌｧﾝｷｰｼﾞｬｸﾞﾗｰ2KT"
+  },
+  {
+    "machineNumber": "0013",
+    "BIG": 1,
+    "REG": 1,
+    "totalGames": 718,
+    "currentGames": 280,
+    "difference": 0,
+    "machineName": "ﾌｧﾝｷｰｼﾞｬｸﾞﾗｰ2KT"
+  },
+  {
+    "machineNumber": "0015",
+    "BIG": 4,
+    "REG": 0,
+    "totalGames": 956,
+    "currentGames": 177,
+    "difference": 0,
+    "machineName": "ﾌｧﾝｷｰｼﾞｬｸﾞﾗｰ2KT"
+  },
+  {
+    "machineNumber": "0016",
+    "BIG": 18,
+    "REG": 22,
+    "totalGames": 5660,
+    "currentGames": 258,
+    "difference": 0,
+    "machineName": "ﾊｯﾋﾟｰｼﾞｬｸﾞﾗｰVIII"
+  },
+  {
+    "machineNumber": "0017",
+    "BIG": 43,
+    "REG": 33,
+    "totalGames": 9260,
+    "currentGames": 28,
+    "difference": 0,
+    "machineName": "ﾊｯﾋﾟｰｼﾞｬｸﾞﾗｰVIII"
+  },
+  {
+    "machineNumber": "0018",
+    "BIG": 34,
+    "REG": 30,
+    "totalGames": 7255,
+    "currentGames": 383,
+    "difference": 0,
+    "machineName": "ﾊｯﾋﾟｰｼﾞｬｸﾞﾗｰVIII"
+  },
+  {
+    "machineNumber": "0020",
+    "BIG": 33,
+    "REG": 19,
+    "totalGames": 5724,
+    "currentGames": 27,
+    "difference": 0,
+    "machineName": "ﾊｯﾋﾟｰｼﾞｬｸﾞﾗｰVIII"
+  },
+  {
+    "machineNumber": "0021",
+    "BIG": 2,
+    "REG": 2,
+    "totalGames": 963,
+    "currentGames": 264,
+    "difference": 0,
+    "machineName": "ｺﾞｰｺﾞｰｼﾞｬｸﾞﾗｰ3"
+  },
+  {
+    "machineNumber": "0022",
+    "BIG": 6,
+    "REG": 3,
+    "totalGames": 1903,
+    "currentGames": 134,
+    "difference": 0,
+    "machineName": "ｺﾞｰｺﾞｰｼﾞｬｸﾞﾗｰ3"
+  },
+  {
+    "machineNumber": "0023",
+    "BIG": 7,
+    "REG": 8,
+    "totalGames": 2388,
+    "currentGames": 147,
+    "difference": 0,
+    "machineName": "ｺﾞｰｺﾞｰｼﾞｬｸﾞﾗｰ3"
+  },
+  {
+    "machineNumber": "0025",
+    "BIG": 7,
+    "REG": 6,
+    "totalGames": 2362,
+    "currentGames": 260,
+    "difference": 0,
+    "machineName": "ｺﾞｰｺﾞｰｼﾞｬｸﾞﾗｰ3"
+  },
+  {
+    "machineNumber": "0026",
+    "BIG": 1,
+    "REG": 6,
+    "totalGames": 1883,
+    "currentGames": 631,
+    "difference": 0,
+    "machineName": "ｳﾙﾄﾗﾐﾗｸﾙｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0027",
+    "BIG": 37,
+    "REG": 17,
+    "totalGames": 6785,
+    "currentGames": 11,
+    "difference": 0,
+    "machineName": "ｳﾙﾄﾗﾐﾗｸﾙｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0028",
+    "BIG": 2,
+    "REG": 2,
+    "totalGames": 888,
+    "currentGames": 334,
+    "difference": 0,
+    "machineName": "ｳﾙﾄﾗﾐﾗｸﾙｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0030",
+    "BIG": 4,
+    "REG": 4,
+    "totalGames": 1535,
+    "currentGames": 374,
+    "difference": 0,
+    "machineName": "ｳﾙﾄﾗﾐﾗｸﾙｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0136",
+    "BIG": 0,
+    "REG": 13,
+    "totalGames": 5669,
+    "currentGames": 440,
+    "difference": 0,
+    "machineName": "Lいざ!番長"
+  },
+  {
+    "machineNumber": "0137",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 299,
+    "currentGames": 164,
+    "difference": 0,
+    "machineName": "Lいざ!番長"
+  },
+  {
+    "machineNumber": "0138",
+    "BIG": 0,
+    "REG": 4,
+    "totalGames": 3577,
+    "currentGames": 199,
+    "difference": 0,
+    "machineName": "Lいざ!番長"
+  },
+  {
+    "machineNumber": "0150",
+    "BIG": 0,
+    "REG": 0,
+    "totalGames": 0,
+    "currentGames": 0,
+    "difference": 0,
+    "machineName": "Lいざ!番長"
+  },
+  {
+    "machineNumber": "0087",
+    "BIG": 23,
+    "REG": 22,
+    "totalGames": 6657,
+    "currentGames": 448,
+    "difference": 0,
+    "machineName": "ﾐｽﾀｰｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0088",
+    "BIG": 34,
+    "REG": 21,
+    "totalGames": 6828,
+    "currentGames": 22,
+    "difference": 0,
+    "machineName": "ﾐｽﾀｰｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0100",
+    "BIG": 20,
+    "REG": 20,
+    "totalGames": 4931,
+    "currentGames": 74,
+    "difference": 0,
+    "machineName": "ﾐｽﾀｰｼﾞｬｸﾞﾗｰ"
+  },
+  {
+    "machineNumber": "0132",
+    "BIG": 0,
+    "REG": 8,
+    "totalGames": 3669,
+    "currentGames": 145,
+    "difference": 0,
+    "machineName": "L炎炎ﾉ消防隊2"
+  },
+  {
+    "machineNumber": "0133",
+    "BIG": 0,
+    "REG": 4,
+    "totalGames": 1522,
+    "currentGames": 328,
+    "difference": 0,
+    "machineName": "L炎炎ﾉ消防隊2"
+  },
+  {
+    "machineNumber": "0135",
+    "BIG": 0,
+    "REG": 1,
+    "totalGames": 1160,
+    "currentGames": 300,
+    "difference": 0,
+    "machineName": "L炎炎ﾉ消防隊2"
+  }
+]

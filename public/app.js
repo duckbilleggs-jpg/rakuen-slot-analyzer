@@ -419,10 +419,11 @@ function renderRealtimeTable() {
 
     let filtered = [...currentData.realtime];
 
-    // 設定フィルタ
+    // 設定フィルタ (minGames 未満の台に高設定フラグが立っているのをブロック)
+    const minGamesVal = parseInt(document.getElementById('cfgMinGames').value) || 2000;
     const settingFilter = document.getElementById('realtimeSettingFilter').value;
     if (settingFilter === 'high') {
-        filtered = filtered.filter(m => m.推定設定 >= 5);
+        filtered = filtered.filter(m => m.推定設定 >= 5 && m.G数 >= minGamesVal);
     }
 
     // 機種フィルタ
@@ -469,6 +470,8 @@ function renderRealtimeTable() {
         remainingGames = Math.max(0, Math.floor((remainingMs / 1000) / secPerGame));
     }
 
+    const minGames = parseInt(document.getElementById('cfgMinGames').value) || 2000;
+
     tbody.innerHTML = filtered.map(m => {
         // 残りG数と期待値の動的計算
         const currentRemainingG = remainingGames;
@@ -478,17 +481,23 @@ function renderRealtimeTable() {
         const currentExpectedSamai = m.期待差枚 || Math.floor(currentRemainingG * expectedPerG);
         const currentExpectedYen = m.期待値円 || Math.floor(currentExpectedSamai * (46 / 3)); 
 
+        let displaySetting = m.推定設定;
+        // 最低G数に満たない場合、設定5・6の判別を無効化（1〜4はそのままか、もしくは全て無効化するか？「設定5,6の判別をするように」とのことなので5,6のみ対象とする）
+        if (m.G数 < minGames && (displaySetting === 5 || displaySetting === 6)) {
+            displaySetting = 0; // 0になると '-' 表示になる
+        }
+
         let settingClass = '';
         let badgeClass = '';
         let badgeText = '';
-        if (m.推定設定 === 6) {
+        if (displaySetting === 6) {
             settingClass = 'setting-6'; badgeClass = 'badge-6'; badgeText = '設定6';
-        } else if (m.推定設定 === 5) {
+        } else if (displaySetting === 5) {
             settingClass = 'setting-5'; badgeClass = 'badge-5'; badgeText = '設定5';
-        } else if (m.推定設定 === 4) {
+        } else if (displaySetting === 4) {
             settingClass = ''; badgeClass = ''; badgeText = '設定4';
-        } else if (m.推定設定 >= 1) {
-            settingClass = ''; badgeClass = ''; badgeText = `設定${m.推定設定}`;
+        } else if (displaySetting >= 1) {
+            settingClass = ''; badgeClass = ''; badgeText = `設定${displaySetting}`;
         } else {
             settingClass = ''; badgeClass = ''; badgeText = '-';
         }

@@ -1,0 +1,24 @@
+[DEBUG] 台番=56, G数=1710, minGames=2000
+[DEBUG] -> Entering IF block (G数 < minGames)
+[DEBUG] -> estimatedSetting is now 0
+[DEBUG] -> Final estimatedSetting to assign is 0
+[
+  {
+    '機種名': 'ﾏｲｼﾞｬｸﾞﾗｰV',
+    '台番': 56,
+    'G数': 1710,
+    'BB回数': 5,
+    'RB回数': 5,
+    'ART回数': 0,
+    '最高出玉': 0,
+    '実質確率': '1/171.0',
+    '計算方式': 'BB+RB+ART',
+    '推定設定': 0,
+    '信頼度スコア': 30,
+    '信頼度ラベル': '★☆☆ 低',
+    '残りG数': 18907,
+    '期待差枚': 4538,
+    '期待値円': 69583,
+    '理論出率': 108
+  }
+]

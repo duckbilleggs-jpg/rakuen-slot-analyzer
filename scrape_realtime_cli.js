@@ -77,11 +77,17 @@ function pushDataToApi(apiUrl, payloadObj) {
         console.log('[CLI] ファイアウォール回避のためWEB経由でのデータ保存を開始します');
         
         // スクレイプ実行
-        const data = await scrapeDDelta((current, total, modelName) => {
-            if (current % 5 === 0 || current === 1) {
-                console.log(`[CLI] 進捗: ${current}/${total} - ${modelName}`);
-            }
-        }, storeConfig);
+        let data = [];
+        if (storeId === 'kinshicho') {
+            const { scrapeDeltanetPscube } = require('./scraper_pscube');
+            data = await scrapeDeltanetPscube();
+        } else {
+            data = await scrapeDDelta((current, total, modelName) => {
+                if (current % 5 === 0 || current === 1) {
+                    console.log(`[CLI] 進捗: ${current}/${total} - ${modelName}`);
+                }
+            }, storeConfig);
+        }
         
         console.log(`[CLI] スクレイプ完了: ${data.length}台`);
         

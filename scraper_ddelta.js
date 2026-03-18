@@ -442,10 +442,21 @@ function analyzeRealtimeData(machines) {
         m.計算方式 = calcMethod;
 
         let estimatedSetting = 1;
-        if (actualProb <= thresholds.s6) estimatedSetting = 6;
-        else if (actualProb <= thresholds.s5) estimatedSetting = 5;
-        else if (actualProb <= thresholds.s4) estimatedSetting = 4;
-        else estimatedSetting = m.G数 >= 1000 ? 2 : 0;
+        console.log(`[DEBUG] 台番=${m.台番}, G数=${m.G数}, minGames=${config && config.analysis ? config.analysis.minGames : 'undefined'}`);
+        if (m.G数 < (config.analysis ? config.analysis.minGames : 2000)) {
+            // ユーザー指定の最低ゲーム数（デフォルト2000）を満たさない台は設定5, 6の判別から除外する
+            console.log(`[DEBUG] -> Entering IF block (G数 < minGames)`);
+            estimatedSetting = 0;
+            console.log(`[DEBUG] -> estimatedSetting is now ${estimatedSetting}`);
+        } else {
+            console.log(`[DEBUG] -> Entering ELSE block`);
+            if (actualProb <= thresholds.s6) estimatedSetting = 6;
+            else if (actualProb <= thresholds.s5) estimatedSetting = 5;
+            else if (actualProb <= thresholds.s4) estimatedSetting = 4;
+            else estimatedSetting = m.G数 >= 1000 ? 2 : 0;
+            console.log(`[DEBUG] -> estimatedSetting is now ${estimatedSetting} based on actualProb=${actualProb}`);
+        }
+        console.log(`[DEBUG] -> Final estimatedSetting to assign is ${estimatedSetting}`);
         m.推定設定 = estimatedSetting;
 
         let confidence = 10;

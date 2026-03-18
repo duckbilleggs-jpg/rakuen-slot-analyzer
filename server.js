@@ -90,6 +90,35 @@ app.get('/api/stores', (req, res) => {
   res.json(config.stores || []);
 });
 
+/** デバッグ: MongoDB内のデータ確認用 */
+app.get('/api/debug/db', async (req, res) => {
+  try {
+    const { Machine } = require('./database');
+    const totalCount = await Machine.countDocuments();
+    const noStoreCount = await Machine.countDocuments({ storeId: { $exists: false } });
+    const tachikawaCount = await Machine.countDocuments({ storeId: 'tachikawa' });
+    const sagamiharaCount = await Machine.countDocuments({ storeId: 'sagamihara' });
+    const nullStoreCount = await Machine.countDocuments({ storeId: null });
+    const emptyStoreCount = await Machine.countDocuments({ storeId: '' });
+    const dates = await Machine.distinct('dateKey', { storeId: 'tachikawa' });
+    const allDates = await Machine.distinct('dateKey');
+    const sample = await Machine.findOne().lean();
+    res.json({
+      totalCount,
+      noStoreCount,
+      nullStoreCount,
+      emptyStoreCount,
+      tachikawaCount,
+      sagamiharaCount,
+      tachikawaDateKeys: dates.sort().slice(-5),
+      allDateKeys: allDates.sort().slice(-5),
+      sampleRecord: sample
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.get('/health', async (req, res) => {
   if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
     console.log('[Auto] データが古いため自動スクレイプを開始(Health Check)');
@@ -602,6 +631,20 @@ function getLocalIP() {
 (async () => {
   try {
     await connectDB();
+
+    // 起動時マイグレーション: storeIdなしの古いレコードにデフォルト値を設定
+    try {
+      const { Machine } = require('./database');
+      const migrated = await Machine.updateMany(
+        { $or: [{ storeId: { $exists: false } }, { storeId: null }, { storeId: '' }] },
+        { $set: { storeId: 'tachikawa' } }
+      );
+      if (migrated.modifiedCount > 0) {
+        console.log(`[Migration] ${migrated.modifiedCount}件のレコードにstoreId='tachikawa'を設定しました`);
+      }
+    } catch (migErr) {
+      console.log('[Migration] storeIdマイグレーション失敗:', migErr.message);
+    }
 
     // 起動時にMongoDBからリアルタイムキャッシュを復元（全店舗）
     try {

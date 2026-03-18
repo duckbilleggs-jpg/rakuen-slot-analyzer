@@ -223,6 +223,35 @@ app.post('/api/realtime', async (req, res) => {
     res.json({ status: 'info', message: 'リアルタイムデータは設定画面のスケジュールに従って自動取得されます' });
 });
 
+/** 外部スクレイパー(PAD等)からリアルタイムデータを受信して保存 (ファイアウォール回避用) */
+app.post('/api/upload-realtime', async (req, res) => {
+    try {
+        const { storeId, machines, timestamp } = req.body;
+        if (!storeId || !machines || !Array.isArray(machines)) {
+            return res.status(400).json({ error: 'storeId and machines array are required' });
+        }
+        
+        const saveTimestamp = timestamp || new Date().toISOString();
+        
+        // MongoDBへ直接保存
+        await RealtimeCache.findOneAndUpdate(
+            { key: `latest_${storeId}` },
+            { machines, timestamp: saveTimestamp },
+            { upsert: true }
+        );
+        console.log(`[API] ✨ Web経由で ${storeId} のリアルタイムデータを受信・保存完了 (${machines.length}台)`);
+        
+        // オンメモリキャッシュも即座に更新
+        cachedRealtimeData[storeId] = machines;
+        lastRealtimeFetch[storeId] = saveTimestamp;
+        
+        res.json({ status: 'ok', message: 'Data saved successfully via API' });
+    } catch (e) {
+        console.error('[API] /api/upload-realtime エラー:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 /** 激熱予測（機種別設定⑤⑥判別ベース） */
 app.get('/api/forecast', async (req, res) => {
     try {

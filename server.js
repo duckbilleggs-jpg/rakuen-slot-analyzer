@@ -12,7 +12,7 @@ const { updateDBForNewMachines } = require('./machine_lookup');
 const { scrapeDDelta } = require('./scraper_ddelta');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 7731;
 
 // Renderなど表示専用環境ではスクレイピングを無効化
 const SCRAPING_DISABLED = process.env.DISABLE_SCRAPING === 'true';

@@ -552,6 +552,10 @@ function renderForecastTable() {
         else if (m.おすすめ度 && m.おすすめ度.includes('★★☆')) recClass = 'confidence-mid';
         else recClass = 'confidence-low';
 
+        const streak = m.最大連日数 || 0;
+        const streakColor = streak >= 3 ? '#ef4444' : streak >= 2 ? '#f59e0b' : 'var(--text-secondary)';
+        const streakDisplay = streak >= 2 ? `<strong style="color:${streakColor};">${streak}連日</strong>` : `<span style="color:${streakColor};">${streak}</span>`;
+
         return `
         <tr class="${rankClass}" style="cursor:pointer;" onclick="showMachineDetail('${m.台番}', '${m.機種名.replace(/'/g, "\\'")}')"
             title="クリックで詳細表示">
@@ -561,6 +565,7 @@ function renderForecastTable() {
             <td class="td-num" style="color:#ef4444; font-weight:bold; font-size:1.1em;">${m.設定6回数 || 0}</td>
             <td class="td-num" style="color:#f59e0b; font-weight:bold;">${m.設定5回数 || 0}</td>
             <td class="td-num" style="font-weight:bold;">${m.高設定合計 || 0}</td>
+            <td class="td-num td-highlight">${streakDisplay}</td>
             <td class="td-num">${m.平均出率 || '-'}%</td>
             <td class="td-num" style="color:var(--text-secondary); font-size:0.9em;">${m.直近確認日 || '-'}</td>
         </tr>

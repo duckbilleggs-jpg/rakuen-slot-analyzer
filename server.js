@@ -315,7 +315,26 @@ app.get('/api/forecast', async (req, res) => {
         // 機種別理論出率DBを使って各レコードの設定を判定
         const db = loadDB();
         const machineStats = {}; // { "機種名_台番": { s6回数, s5回数, ... } }
-        
+
+        // 連日数計算ヘルパー: YYYY-MM-DD形式の日付セットから最大連続日数を返す
+        function calcMaxStreak(dateSet) {
+            if (!dateSet || dateSet.size === 0) return 0;
+            const dates = [...dateSet].sort();
+            let maxStreak = 1, streak = 1;
+            for (let i = 1; i < dates.length; i++) {
+                const prev = new Date(dates[i - 1]);
+                const curr = new Date(dates[i]);
+                const diffDays = Math.round((curr - prev) / 86400000);
+                if (diffDays === 1) {
+                    streak++;
+                    if (streak > maxStreak) maxStreak = streak;
+                } else {
+                    streak = 1;
+                }
+            }
+            return maxStreak;
+        }
+
         for (const r of records) {
             const specs = db[r.機種名] || getDefaultSpecs();
             const key = `${r.機種名}_${r.台番}`;
@@ -324,7 +343,8 @@ app.get('/api/forecast', async (req, res) => {
                 machineStats[key] = {
                     機種名: r.機種名, 台番: r.台番,
                     s6回数: 0, s5回数: 0, 総日数: 0,
-                    出率合計: 0, 差枚合計: 0, 直近確認日: ''
+                    出率合計: 0, 差枚合計: 0, 直近確認日: '',
+                    highSettingDates: new Set()
                 };
             }
             const stat = machineStats[key];
@@ -336,8 +356,10 @@ app.get('/api/forecast', async (req, res) => {
             // 機種ごとの理論出率で設定判定
             if (specs.s6 && r.出率 >= specs.s6) {
                 stat.s6回数++;
+                stat.highSettingDates.add(r.dateKey);
             } else if (specs.s5 && r.出率 >= specs.s5) {
                 stat.s5回数++;
+                stat.highSettingDates.add(r.dateKey);
             }
         }
 
@@ -350,6 +372,7 @@ app.get('/api/forecast', async (req, res) => {
                 設定6回数: s.s6回数,
                 設定5回数: s.s5回数,
                 高設定合計: s.s6回数 + s.s5回数,
+                最大連日数: calcMaxStreak(s.highSettingDates),
                 総日数: s.総日数,
                 平均出率: parseFloat((s.出率合計 / s.総日数).toFixed(1)),
                 直近確認日: s.直近確認日,

@@ -10,6 +10,7 @@ const { scrapeToday, scrapeRecent, loadDayData, todayKey, normalizeDateKey } = r
 const { analyzeHighSetting, analyzeAll } = require('./analyzer');
 const { updateDBForNewMachines } = require('./machine_lookup');
 const { scrapeDDelta } = require('./scraper_ddelta');
+const { scrapeDeltanetPscube } = require('./scraper_pscube');
 
 const app = express();
 const PORT = process.env.PORT || 7731;
@@ -520,9 +521,15 @@ async function runRealtimeScrape() {
             realtimeProgress = { current: 0, total: 0, modelName: '', storeName: store.name };
 
             try {
-                const data = await scrapeDDelta((current, total, modelName) => {
-                    realtimeProgress = { current, total, modelName, storeName: store.name };
-                }, store);
+                let data;
+                if (store.id === 'kinshicho') {
+                    // 錦糸町はDMM P-Town (P'sCube) 経由でスクレイプ
+                    data = await scrapeDeltanetPscube();
+                } else {
+                    data = await scrapeDDelta((current, total, modelName) => {
+                        realtimeProgress = { current, total, modelName, storeName: store.name };
+                    }, store);
+                }
 
                 if (data && data.length > 0) {
                     cachedRealtimeData[store.id] = data;

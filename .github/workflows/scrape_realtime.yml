@@ -1,4 +1,4 @@
-name: リアルタイムスクレイピング - 楽園立川 (d-deltanet)
+name: リアルタイムスクレイピング - 楽園全店舗
 
 on:
   schedule:
@@ -8,7 +8,7 @@ on:
 jobs:
   scrape-realtime:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: リポジトリをチェックアウト
@@ -23,8 +23,26 @@ jobs:
       - name: 依存パッケージインストール
         run: npm ci
 
-      - name: リアルタイムスクレイピング実行
-        run: node scrape_realtime_cli.js
+      - name: Chromium インストール (錦糸町用 Puppeteer)
+        run: npx puppeteer browsers install chrome
+
+      - name: リアルタイムスクレイピング実行 (立川)
+        run: node scrape_realtime_cli.js --store tachikawa
         env:
+          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        timeout-minutes: 15
+
+      - name: リアルタイムスクレイピング実行 (相模原)
+        run: node scrape_realtime_cli.js --store sagamihara
+        env:
+          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        timeout-minutes: 15
+
+      - name: リアルタイムスクレイピング実行 (錦糸町)
+        run: node scrape_realtime_cli.js --store kinshicho
+        env:
+          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
         timeout-minutes: 15

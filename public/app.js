@@ -367,10 +367,10 @@ function renderPastTable() {
     if (filterMachine !== 'all') filtered = filtered.filter(m => m.機種名 === filterMachine);
 
     switch (sortKey) {
-        case 'ev': filtered.sort((a, b) => b.期待値円 - a.期待値円); break;
-        case 'setting': filtered.sort((a, b) => b.推定設定 - a.推定設定 || b.期待値円 - a.期待値円); break;
+        case 'ev': filtered.sort((a, b) => (b.差枚 || 0) - (a.差枚 || 0)); break;
+        case 'setting': filtered.sort((a, b) => b.推定設定 - a.推定設定 || (b.差枚 || 0) - (a.差枚 || 0)); break;
         case 'rate': filtered.sort((a, b) => b.出率 - a.出率); break;
-        case 'confidence': filtered.sort((a, b) => b.信頼度 - a.信頼度 || b.期待値円 - a.期待値円); break;
+        case 'confidence': filtered.sort((a, b) => b.信頼度 - a.信頼度 || (b.差枚 || 0) - (a.差枚 || 0)); break;
         case 'samai': filtered.sort((a, b) => b.差枚 - a.差枚); break;
     }
 
@@ -388,7 +388,9 @@ function renderPastTable() {
         const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
         const confClass = m.信頼度 >= 80 ? 'confidence-high' : m.信頼度 >= 50 ? 'confidence-mid' : 'confidence-low';
         const samaiClass = m.差枚 >= 0 ? 'td-positive' : 'td-negative';
-        const evClass = (m.期待値円 || 0) >= 0 ? 'td-positive' : 'td-negative';
+        // 期待値（円） = 差枚数 × 46円（46円スロット実績ベース）
+        const evYen = Math.round((m.差枚 || 0) * 46);
+        const evClass = evYen >= 0 ? 'td-positive' : 'td-negative';
 
         return `
         <tr class="${settingClass}">
@@ -401,7 +403,7 @@ function renderPastTable() {
             <td class="td-num">${m.出率.toFixed(1)}%</td>
             <td class="td-num ${samaiClass}">${m.差枚.toLocaleString()}</td>
             <td class="td-num">${m.G数.toLocaleString()}</td>
-            <td class="td-num td-highlight ${evClass}">${m.期待値円 ? '¥' + m.期待値円.toLocaleString() : '-'}</td>
+            <td class="td-num td-highlight ${evClass}">¥${evYen.toLocaleString()}</td>
         </tr>
         `;
     }).join('');

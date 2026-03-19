@@ -146,8 +146,8 @@ async function scrapeRecent(days = 1, storeConfig) {
             upsert: true
           }
         }));
-        await Machine.bulkWrite(ops);
-        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了 (${storeConfig.name})`);
+        const res = await Machine.bulkWrite(ops);
+        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了 (${storeConfig.name}) [upserted:${res.upsertedCount}, modified:${res.modifiedCount}]`);
       }
     } catch (err) {
       console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);

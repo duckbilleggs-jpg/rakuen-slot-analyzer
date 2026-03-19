@@ -9,6 +9,11 @@ const path = require('path');
 const { Machine } = require('./database');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
+// DEBUG: DB接続先確認 (一時的)
+const _uri = process.env.MONGODB_URI || '';
+const _dbName = _uri.split('/').pop()?.split('?')[0] || 'UNKNOWN';
+console.log(`[Debug] MongoDB DB名: ${_dbName}`);
+
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 

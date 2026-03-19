@@ -9,11 +9,6 @@ const path = require('path');
 const { Machine } = require('./database');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
-// DEBUG: DB接続先確認 (一時的)
-const _uri = process.env.MONGODB_URI || '';
-const _dbName = _uri.split('/').pop()?.split('?')[0] || 'UNKNOWN';
-console.log(`[Debug] MongoDB DB名: ${_dbName}`);
-
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -121,7 +116,6 @@ async function scrapeRecent(days = 1, storeConfig) {
 
     // 日付文字列を正規化 (3/12(木) → 2026-03-12 etc.)
     const dateKey = normalizeDateKey(d.date);
-    console.log(`[Debug] d.date="${d.date}" → dateKey="${dateKey}"`);
     allData[dateKey] = { date: d.date, id: d.id, machines: rows };
 
     // 日別ファイル保存 (バックアップ用途で一応残す)
@@ -133,12 +127,15 @@ async function scrapeRecent(days = 1, storeConfig) {
       if (rows.length > 0) {
         const ops = rows.map(m => ({
           updateOne: {
-            filter: { storeId: storeConfig.id, dateKey, 台番: m.台番 },
+            filter: { storeId: storeConfig.id, dateKey, 台番: Number(m.台番) },
             update: {
               $set: {
+                storeId: storeConfig.id,
+                dateKey,
                 reportId: d.id,
                 dateRaw: d.date,
                 機種名: m.機種名,
+                台番: Number(m.台番),
                 差枚: m.差枚,
                 G数: m.G数,
                 出率: m.出率
@@ -148,7 +145,7 @@ async function scrapeRecent(days = 1, storeConfig) {
           }
         }));
         const res = await Machine.bulkWrite(ops, { ordered: false });
-        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了 (${storeConfig.name}) [upserted:${res.upsertedCount}, modified:${res.modifiedCount}]`);
+        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 処理完了 (${storeConfig.name}) [upserted:${res.upsertedCount}, modified:${res.modifiedCount}]`);
       }
     } catch (err) {
       console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);

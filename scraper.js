@@ -121,6 +121,7 @@ async function scrapeRecent(days = 1, storeConfig) {
 
     // 日付文字列を正規化 (3/12(木) → 2026-03-12 etc.)
     const dateKey = normalizeDateKey(d.date);
+    console.log(`[Debug] d.date="${d.date}" → dateKey="${dateKey}"`);
     allData[dateKey] = { date: d.date, id: d.id, machines: rows };
 
     // 日別ファイル保存 (バックアップ用途で一応残す)

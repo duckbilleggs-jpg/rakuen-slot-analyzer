@@ -96,25 +96,25 @@ app.get('/api/stores', (req, res) => {
 app.get('/api/debug/db', async (req, res) => {
   try {
     const { Machine } = require('./database');
+    const config = require('./config.json');
     const totalCount = await Machine.countDocuments();
     const noStoreCount = await Machine.countDocuments({ storeId: { $exists: false } });
-    const tachikawaCount = await Machine.countDocuments({ storeId: 'tachikawa' });
-    const sagamiharaCount = await Machine.countDocuments({ storeId: 'sagamihara' });
-    const nullStoreCount = await Machine.countDocuments({ storeId: null });
-    const emptyStoreCount = await Machine.countDocuments({ storeId: '' });
-    const dates = await Machine.distinct('dateKey', { storeId: 'tachikawa' });
-    const allDates = await Machine.distinct('dateKey');
-    const sample = await Machine.findOne().lean();
+
+    // 店舗別カウントと日付を動的に集計
+    const storeSummaries = {};
+    for (const store of config.stores) {
+      const count = await Machine.countDocuments({ storeId: store.id });
+      const dates = await Machine.distinct('dateKey', { storeId: store.id });
+      storeSummaries[store.id] = {
+        count,
+        dateKeys: dates.sort().slice(-5)
+      };
+    }
+
     res.json({
       totalCount,
       noStoreCount,
-      nullStoreCount,
-      emptyStoreCount,
-      tachikawaCount,
-      sagamiharaCount,
-      tachikawaDateKeys: dates.sort().slice(-5),
-      allDateKeys: allDates.sort().slice(-5),
-      sampleRecord: sample
+      stores: storeSummaries
     });
   } catch (e) {
     res.status(500).json({ error: e.message });

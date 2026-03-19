@@ -388,8 +388,8 @@ function renderPastTable() {
         const badgeClass = m.推定設定 === 6 ? 'badge-6' : 'badge-5';
         const confClass = m.信頼度 >= 80 ? 'confidence-high' : m.信頼度 >= 50 ? 'confidence-mid' : 'confidence-low';
         const samaiClass = m.差枚 >= 0 ? 'td-positive' : 'td-negative';
-        // 期待値（円） = 差枚数 × 46円（46円スロット実績ベース）
-        const evYen = Math.round((m.差枚 || 0) * 46);
+        // 期待値（円） = 差枚数 × (1000÷56) ≈ 17.86円（46円スロット: 1000円=56枚）
+        const evYen = Math.round((m.差枚 || 0) * (1000 / 56));
         const evClass = evYen >= 0 ? 'td-positive' : 'td-negative';
 
         return `

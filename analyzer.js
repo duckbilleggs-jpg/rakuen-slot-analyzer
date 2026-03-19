@@ -41,12 +41,10 @@ function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null, cu
     // 信頼度
     const confidence = calcConfidence(m.G数);
 
-    // 期待値計算
-    const ev = calcExpectedValue(specs, estimatedSetting, asOfTime, currentConfig);
-
-    // 1Gあたりの期待枚数 (フロントエンドでの動적再計算用)
-    const rate = specs[`s${estimatedSetting}`] || 108;
-    const expectedSamaiPerG = (currentConfig.analysis.inPerGame || 3) * (rate - 100) / 100;
+    // 期待値計算: 差枚ベース (リアルタイムと同じ方式)
+    const coinRate = currentConfig.analysis.coinRate || 46;
+    const inPerGame = currentConfig.analysis.inPerGame || 3;
+    const 期待値円 = Math.round((m.差枚 || 0) * (coinRate / inPerGame));
 
     results.push({
       ...m,
@@ -54,11 +52,7 @@ function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null, cu
       信頼度: confidence,
       信頼度ラベル: confidenceLabel(confidence),
       理論出率: specs[`s${estimatedSetting}`],
-      期待枚数PerG: expectedSamaiPerG,
-      残りG数: ev.残りG数,
-      期待差枚: ev.期待差枚,
-      期待値円: ev.期待値円,
-      閉店まで: ev.閉店まで,
+      期待値円: 期待値円,
       reportId: reportId
     });
   }

@@ -146,11 +146,14 @@ async function scrapeRecent(days = 1, storeConfig) {
             upsert: true
           }
         }));
-        const res = await Machine.bulkWrite(ops);
+        const res = await Machine.bulkWrite(ops, { ordered: false });
         console.log(`[Scraper]   → MongoDBへ ${rows.length}件 保存/更新完了 (${storeConfig.name}) [upserted:${res.upsertedCount}, modified:${res.modifiedCount}]`);
       }
     } catch (err) {
       console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);
+      if (err.writeErrors) {
+        err.writeErrors.slice(0, 3).forEach(we => console.error(`  writeError:`, we.errmsg));
+      }
     }
 
     await sleep(config.scrape.requestIntervalMs);

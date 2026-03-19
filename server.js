@@ -24,21 +24,31 @@ function loadConfig() {
   return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 }
 
-/** 46円スロット台番号ホワイトリストを読み込み（5円スロット除外用） */
-function loadSlot46Filter() {
+/** 46円スロット台番号ホワイトリストを読み込み（店舗別対応）*/
+function loadSlot46Filter(storeId = null) {
+  // storeId指定があればslot46_<storeId>.jsonを優先
+  if (storeId) {
+    try {
+      const nums = JSON.parse(fs.readFileSync(path.join(__dirname, `slot46_${storeId}.json`), 'utf8'));
+      return new Set(nums);
+    } catch (e) { /* 店舗別ファイルなし */ }
+  }
+  // フォールバック: 旧slot46_numbers.json (後方互換)
   try {
     const nums = JSON.parse(fs.readFileSync(path.join(__dirname, 'slot46_numbers.json'), 'utf8'));
     return new Set(nums);
   } catch (e) {
-    return null; // ファイルなし → フィルタなし
+    return null; // ファイルなし → フィルタなし（全台表示）
   }
 }
 
-/** 台データから5円スロットを除外 */
-function filter46Only(machines) {
-  const s46 = loadSlot46Filter();
-  if (!s46) return machines; // ファイルなしなら全件返す
-  return machines.filter(m => s46.has(m.台番) || s46.has(parseInt(m.台番)));
+/** 台データから5円スロットを除外（店舗ID対応） */
+function filter46Only(machines, storeId = null) {
+  const s46 = loadSlot46Filter(storeId);
+  if (!s46) return machines; // フィルタなし → 全台返す
+  const filtered = machines.filter(m => s46.has(m.台番) || s46.has(parseInt(m.台番)));
+  // フィルタ後に0件になる場合は全台を返す（台番が更新されて対応できていないケース）
+  return filtered.length > 0 ? filtered : machines;
 }
 
 // 静的ファイル配信
@@ -156,7 +166,7 @@ app.get('/api/high-setting', async (req, res) => {
     }
     const config = loadConfig();
     const now = lastScrapeTime ? new Date(lastScrapeTime) : new Date();
-    const filtered = filter46Only(data.machines);
+    const filtered = filter46Only(data.machines, storeId);
     const highSetting = analyzeHighSetting(filtered, now, data.id, config);
     res.json({
       machines: highSetting,
@@ -181,7 +191,7 @@ app.get('/api/all', async (req, res) => {
       return res.json({ machines: [], lastScrape: lastScrapeTime, message: 'データがありません' });
     }
     res.json({
-      machines: filter46Only(data.machines),
+      machines: filter46Only(data.machines, storeId),
       lastScrape: lastScrapeTime,
       totalMachines: data.machines.length,
       date: data.date,

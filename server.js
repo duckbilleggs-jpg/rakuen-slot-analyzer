@@ -123,7 +123,7 @@ app.get('/api/debug/db', async (req, res) => {
       const dates = await Machine.distinct('dateKey', { storeId: store.id });
       storeSummaries[store.id] = {
         count,
-        dateKeys: dates.sort().slice(-5)
+        dateKeys: dates.sort()
       };
     }
 

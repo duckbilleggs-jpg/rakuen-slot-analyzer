@@ -138,11 +138,11 @@ app.get('/api/debug/db', async (req, res) => {
 });
 
 app.get('/health', async (req, res) => {
-  if (!SCRAPING_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
+  if (!MINREPO_DISABLED && await isDataStale() && scrapeStatus !== 'running') {
     console.log('[Auto] データが古いため自動スクレイプを開始(Health Check)');
     runScrape();
   }
-  res.json({ status: 'ok', lastScrape: lastScrapeTime, scrapeStatus, scrapingDisabled: SCRAPING_DISABLED });
+  res.json({ status: 'ok', lastScrape: lastScrapeTime, scrapeStatus, minrepoDisabled: MINREPO_DISABLED, realtimeDisabled: REALTIME_DISABLED });
 });
 
 /** 設定5以上の高設定台一覧 (dateパラメータで過去日付指定可能) */
@@ -158,7 +158,7 @@ app.get('/api/high-setting', async (req, res) => {
       dateKey = requestedDate;
     } else {
       // デフォルト: 最新データ
-      if (!SCRAPING_DISABLED && await isDataStale(storeId) && scrapeStatus !== 'running') {
+      if (!MINREPO_DISABLED && await isDataStale(storeId) && scrapeStatus !== 'running') {
         console.log('[Auto] データが古いため自動スクレイプを開始(API Request)');
         runScrape();
       }

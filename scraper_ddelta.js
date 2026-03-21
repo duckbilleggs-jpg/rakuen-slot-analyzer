@@ -416,17 +416,31 @@ function analyzeRealtimeData(machines) {
             continue;
         }
         const specs = db[m.機種名] || getDefaultSpecs();
-        const thresholds = (db[m.機種名] && db[m.機種名].probThresholds) ? db[m.機種名].probThresholds : getDefaultThresholds().probThresholds;
+        const machineType = specs.type || 'AT';
         
+        // AT機: RBのみで確率計算、Aタイプ(ノーマル機): BB+RBで合算確率計算
         let totalHits = 0;
-        const hitCols = (db[m.機種名] && db[m.機種名].hitCols) ? db[m.機種名].hitCols : getDefaultThresholds().hitCols;
-        if (hitCols.includes('BB') || hitCols.includes('AT')) totalHits += m.BB回数; // データカウンタによりBB列にAT回数が入る場合も考慮
-        if (hitCols.includes('RB')) totalHits += m.RB回数;
-        if (hitCols.includes('ART')) totalHits += m.ART回数;
-
-        // モンキーターン等、BBがないがARTに入っているケースのフェイルセーフ
+        let calcMethod = '';
+        let thresholds;
+        
+        if (machineType === 'A' || machineType === 'A+AT') {
+            // Aタイプ（ジャグラー等ノーマル機）: BB+RB合算
+            totalHits = (m.BB回数 || 0) + (m.RB回数 || 0);
+            calcMethod = 'BB+RB';
+            thresholds = specs.probThresholds || getDefaultThresholds().probThresholds;
+        } else {
+            // AT機: RBのみで設定判別
+            totalHits = m.RB回数 || 0;
+            calcMethod = 'RB';
+            // AT機用のRB確率閾値（rbProbThresholds優先、なければデフォルト）
+            thresholds = specs.rbProbThresholds || { s6: 320, s5: 360, s4: 400 };
+        }
+        
+        // RBが0でも他のボーナスがある場合のフェイルセーフ
         if (totalHits === 0 && (m.BB回数 + m.RB回数 + m.ART回数) > 0) {
             totalHits = m.BB回数 + m.RB回数 + m.ART回数;
+            calcMethod = 'BB+RB+ART(fallback)';
+            thresholds = specs.probThresholds || getDefaultThresholds().probThresholds;
         }
         
         if (totalHits === 0) {
@@ -437,7 +451,6 @@ function analyzeRealtimeData(machines) {
         }
 
         const actualProb = m.G数 / totalHits;
-        const calcMethod = hitCols.join('+');
         m.実質確率 = `1/${actualProb.toFixed(1)}`;
         m.計算方式 = calcMethod;
 

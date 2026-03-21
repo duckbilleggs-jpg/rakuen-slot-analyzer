@@ -15,9 +15,15 @@ const { scrapeDeltanetPscube } = require('./scraper_pscube');
 const app = express();
 const PORT = process.env.PORT || 7731;
 
-// Renderなど表示専用環境ではスクレイピングを無効化
-const SCRAPING_DISABLED = process.env.DISABLE_SCRAPING === 'true';
-if (SCRAPING_DISABLED) console.log('[Config] スクレイピング無効モード (DISABLE_SCRAPING=true)');
+// スクレイピングの個別無効化
+// DISABLE_SCRAPING=true → 旧互換: みんレポ・リアルタイム両方無効
+// DISABLE_REALTIME_SCRAPING=true → リアルタイムのみ無効（Render推奨）
+// DISABLE_MINREPO_SCRAPING=true → みんレポのみ無効
+const LEGACY_DISABLE = process.env.DISABLE_SCRAPING === 'true';
+const MINREPO_DISABLED = process.env.DISABLE_MINREPO_SCRAPING === 'true' || (LEGACY_DISABLE && process.env.DISABLE_REALTIME_SCRAPING === undefined);
+const REALTIME_DISABLED = process.env.DISABLE_REALTIME_SCRAPING === 'true' || LEGACY_DISABLE;
+if (MINREPO_DISABLED) console.log('[Config] みんレポスクレイピング無効');
+if (REALTIME_DISABLED) console.log('[Config] リアルタイムスクレイピング無効');
 
 // 設定読み込み
 function loadConfig() {
@@ -751,12 +757,21 @@ function getLocalIP() {
     
     console.log(`   🚪 閉店: ${config.closingTime.hour}:${String(config.closingTime.minute).padStart(2, '0')}`);
     console.log(`   ⏱️  1G=${config.analysis.secondsPerGame}秒 / 最低G数=${config.analysis.minGames}G\n`);
-    if (SCRAPING_DISABLED) {
-      console.log('[Config] Cronジョブ無効 (DISABLE_SCRAPING=true) - 表示専用モード');
+    if (MINREPO_DISABLED && REALTIME_DISABLED) {
+      console.log('[Config] 全Cronジョブ無効 - 表示専用モード');
     } else {
-      setupCronJob();
-      setupRealtimeCronJob();
-      // リアルタイムデータはGitHub ActionsがMongoDBに書き込むので、起動時のスクレープは不要
+      if (!MINREPO_DISABLED) {
+        setupCronJob();
+        console.log('[Config] みんレポCronジョブ有効');
+      } else {
+        console.log('[Config] みんレポCronジョブ無効');
+      }
+      if (!REALTIME_DISABLED) {
+        setupRealtimeCronJob();
+        console.log('[Config] リアルタイムCronジョブ有効');
+      } else {
+        console.log('[Config] リアルタイムCronジョブ無効 (PAD/CLIから手動実行)');
+      }
     }
   });
 })();

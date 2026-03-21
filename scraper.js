@@ -122,35 +122,47 @@ async function scrapeRecent(days = 1, storeConfig) {
     const filePath = path.join(DATA_DIR, `${storeConfig.id}_${dateKey}.json`);
     fs.writeFileSync(filePath, JSON.stringify({ date: d.date, id: d.id, machines: rows, storeId: storeConfig.id }, null, 2), 'utf-8');
 
-    // MongoDB への一括 Upsert
-    try {
-      if (rows.length > 0) {
-        const ops = rows.map(m => ({
-          updateOne: {
-            filter: { storeId: storeConfig.id, dateKey, 台番: Number(m.台番) },
-            update: {
-              $set: {
-                storeId: storeConfig.id,
-                dateKey,
-                reportId: d.id,
-                dateRaw: d.date,
-                機種名: m.機種名,
-                台番: Number(m.台番),
-                差枚: m.差枚,
-                G数: m.G数,
-                出率: m.出率
-              }
-            },
-            upsert: true
+    // MongoDB への一括 Upsert (リトライ付き)
+    if (rows.length > 0) {
+      const ops = rows.map(m => ({
+        updateOne: {
+          filter: { storeId: storeConfig.id, dateKey, 台番: Number(m.台番) },
+          update: {
+            $set: {
+              storeId: storeConfig.id,
+              dateKey,
+              reportId: d.id,
+              dateRaw: d.date,
+              機種名: m.機種名,
+              台番: Number(m.台番),
+              差枚: m.差枚,
+              G数: m.G数,
+              出率: m.出率
+            }
+          },
+          upsert: true
+        }
+      }));
+
+      const MAX_RETRIES = 3;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const res = await Machine.bulkWrite(ops, { ordered: false });
+          console.log(`[Scraper]   → MongoDBへ ${rows.length}件 処理完了 (${storeConfig.name}) [upserted:${res.upsertedCount}, modified:${res.modifiedCount}]`);
+          break; // 成功したらループ終了
+        } catch (err) {
+          const isTimeout = err.message && err.message.includes('buffering timed out');
+          if (isTimeout && attempt < MAX_RETRIES) {
+            console.warn(`[Scraper] DB書き込みタイムアウト(${dateKey}) - リトライ ${attempt}/${MAX_RETRIES}...`);
+            await sleep(2000 * attempt); // 2秒, 4秒とバックオフ
+          } else {
+            console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);
+            if (err.writeErrors) {
+              err.writeErrors.slice(0, 3).forEach(we => console.error(`  writeError:`, we.errmsg));
+            }
+            break; // 最終試行失敗 or タイムアウト以外のエラー
           }
-        }));
-        const res = await Machine.bulkWrite(ops, { ordered: false });
-        console.log(`[Scraper]   → MongoDBへ ${rows.length}件 処理完了 (${storeConfig.name}) [upserted:${res.upsertedCount}, modified:${res.modifiedCount}]`);
-      }
-    } catch (err) {
-      console.error(`[Scraper] MongoDB書き込みエラー(${dateKey}):`, err.message);
-      if (err.writeErrors) {
-        err.writeErrors.slice(0, 3).forEach(we => console.error(`  writeError:`, we.errmsg));
+        }
       }
     }
 

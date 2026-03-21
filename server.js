@@ -37,9 +37,13 @@ function loadSlot46Filter(storeId = null) {
     try {
       const nums = JSON.parse(fs.readFileSync(path.join(__dirname, `slot46_${storeId}.json`), 'utf8'));
       return new Set(nums);
-    } catch (e) { /* 店舗別ファイルなし */ }
+    } catch (e) {
+      // 店舗別ファイルなし → フィルタなし（全台表示）
+      // 他の店舗の旧ファイルにフォールバックしない
+      return null;
+    }
   }
-  // フォールバック: 旧slot46_numbers.json (後方互換)
+  // storeId未指定の場合のみ旧slot46_numbers.json (後方互換)
   try {
     const nums = JSON.parse(fs.readFileSync(path.join(__dirname, 'slot46_numbers.json'), 'utf8'));
     return new Set(nums);

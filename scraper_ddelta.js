@@ -436,12 +436,7 @@ function analyzeRealtimeData(machines) {
             thresholds = specs.rbProbThresholds || { s6: 320, s5: 360, s4: 400 };
         }
         
-        // RBが0でも他のボーナスがある場合のフェイルセーフ
-        if (totalHits === 0 && (m.BB回数 + m.RB回数 + m.ART回数) > 0) {
-            totalHits = m.BB回数 + m.RB回数 + m.ART回数;
-            calcMethod = 'BB+RB+ART(fallback)';
-            thresholds = specs.probThresholds || getDefaultThresholds().probThresholds;
-        }
+
         
         if (totalHits === 0) {
             m.実質確率 = '-'; m.推定設定 = 0; m.信頼度スコア = 0; m.信頼度ラベル = '-';

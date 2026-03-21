@@ -314,7 +314,9 @@ app.get('/api/forecast', async (req, res) => {
         
         // 46円スロットのみに絞り込み（台番号ホワイトリストがある場合）
         if (slot46Set) {
-            records = records.filter(r => slot46Set.has(r.台番));
+            const filtered = records.filter(r => slot46Set.has(r.台番) || slot46Set.has(parseInt(r.台番)));
+            // フィルタ後に0件になる場合は全台を返す（台番リストが不正確なケース対応）
+            if (filtered.length > 0) records = filtered;
         }
 
         // 機種別理論出率DBを使って各レコードの設定を判定

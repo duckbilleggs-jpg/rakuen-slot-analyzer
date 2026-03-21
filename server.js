@@ -277,11 +277,9 @@ app.get('/api/forecast', async (req, res) => {
         const { Machine } = require('./database');
         const { loadDB, getDefaultSpecs } = require('./machine_lookup');
         
-        // 46円スロット台番号ホワイトリスト読み込み（なければフィルタなし）
-        let slot46Numbers = null;
-        try {
-            slot46Numbers = JSON.parse(fs.readFileSync(path.join(__dirname, 'slot46_numbers.json'), 'utf8'));
-        } catch (e) { /* ファイルなし → フィルタなし */ }
+        // 46円スロット台番号ホワイトリスト（店舗別対応）
+        const storeId = req.query.store || 'tachikawa';
+        const slot46Set = loadSlot46Filter(storeId);
         
         // 期間パラメータ対応（デフォルト: 過去30日）
         const startDate = req.query.startDate;
@@ -304,8 +302,6 @@ app.get('/api/forecast', async (req, res) => {
             dateEnd = yesterday.toISOString().split('T')[0];
         }
 
-        const storeId = req.query.store || 'tachikawa';
-
         let records = await Machine.find({
             storeId: storeId,
             dateKey: { $gte: dateLimit, $lte: dateEnd },
@@ -313,9 +309,8 @@ app.get('/api/forecast', async (req, res) => {
         }).lean();
         
         // 46円スロットのみに絞り込み（台番号ホワイトリストがある場合）
-        if (slot46Numbers && slot46Numbers.length > 0) {
-            const numSet = new Set(slot46Numbers);
-            records = records.filter(r => numSet.has(r.台番));
+        if (slot46Set) {
+            records = records.filter(r => slot46Set.has(r.台番));
         }
 
         // 機種別理論出率DBを使って各レコードの設定を判定
@@ -396,7 +391,7 @@ app.get('/api/forecast', async (req, res) => {
             startDate: dateLimit,
             endDate: dateEnd,
             criteria: '機種別理論出率に基づく設定⑤⑥判定',
-            is46Only: !!slot46Numbers,
+            is46Only: !!slot46Set,
             timestamp: new Date().toISOString()
         });
     } catch (e) {

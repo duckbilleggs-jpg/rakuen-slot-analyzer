@@ -511,7 +511,7 @@ function renderRealtimeTable() {
             <td><span class="badge ${badgeClass}">${badgeText}</span></td>
             <td><span class="confidence ${confClass}">${m.信頼度ラベル || '-'}</span></td>
             <td class="machine-name" title="${m.機種名}">
-                <a href="https://www.d-deltanet.com/pc/D0301.do?pmc=${storeCfg ? storeCfg.ddelta.pmc : '22021030'}&clc=${storeCfg ? storeCfg.ddelta.clc : '03'}&urt=${storeCfg ? storeCfg.ddelta.urt : '2173'}&pan=1" target="_blank" rel="noopener" style="color:var(--text-primary); text-decoration:underline;">${m.機種名}</a>
+                <a href="${storeCfg && storeCfg.ddelta ? `https://www.d-deltanet.com/pc/D0301.do?pmc=${storeCfg.ddelta.pmc}&clc=${storeCfg.ddelta.clc}&urt=${storeCfg.ddelta.urt}&pan=1` : '#'}" target="_blank" rel="noopener" style="color:var(--text-primary); text-decoration:underline; ${!(storeCfg && storeCfg.ddelta) ? 'pointer-events:none;' : ''}">${m.機種名}</a>
             </td>
             <td>${m.台番}</td>
             <td class="td-num">

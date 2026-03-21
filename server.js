@@ -565,6 +565,9 @@ async function runRealtimeScrape() {
                 if (store.id === 'kinshicho') {
                     // 錦糸町はDMM P-Town (P'sCube) 経由でスクレイプ
                     data = await scrapeDeltanetPscube();
+                } else if (!store.ddelta) {
+                    console.log(`[Server] ${store.name} リアルタイム取得非対応のためスキップ`);
+                    data = [];
                 } else {
                     data = await scrapeDDelta((current, total, modelName) => {
                         realtimeProgress = { current, total, modelName, storeName: store.name };

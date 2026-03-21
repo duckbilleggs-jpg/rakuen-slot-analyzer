@@ -81,6 +81,9 @@ function pushDataToApi(apiUrl, payloadObj) {
         if (storeId === 'kinshicho') {
             const { scrapeDeltanetPscube } = require('./scraper_pscube');
             data = await scrapeDeltanetPscube();
+        } else if (!storeConfig.ddelta) {
+            console.log(`[CLI] ${storeConfig.name} リアルタイムスクレイプ非対応のためスキップします`);
+            data = [];
         } else {
             data = await scrapeDDelta((current, total, modelName) => {
                 if (current % 5 === 0 || current === 1) {

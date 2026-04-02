@@ -15,7 +15,7 @@ const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), '
 // 強制終了タイマー（15分で強制終了）
 const FORCE_EXIT_MS = 15 * 60 * 1000;
 const forceExitTimer = setTimeout(() => {
-    console.error('[CLI] ⏰ 5分タイムアウト。強制終了します。');
+    console.error('[SVC] Process timeout. Exiting.');
     process.exit(2);
 }, FORCE_EXIT_MS);
 forceExitTimer.unref(); // Node.jsの終了をブロックしない
@@ -66,39 +66,46 @@ function pushDataToApi(apiUrl, payloadObj) {
     
     const storeConfig = config.stores.find(s => s.id === storeId);
     if (!storeConfig) {
-        console.error(`[CLI] エラー: 指定された店舗ID '${storeId}' がconfig.jsonに見つかりません。`);
+        console.error(`[SVC] Error: target '${storeId}' not found in config.`);
         process.exit(1);
     }
 
-    console.log(`[CLI] リアルタイムスクレイプ開始 (${storeConfig.name})...`);
-    console.log(`[CLI] 時刻: ${new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}`);
+    console.log(`[SVC] Task started (target: ${storeId})`);
+    console.log(`[SVC] Time: ${new Date().toISOString()}`);
     
     try {
-        console.log('[CLI] ファイアウォール回避のためWEB経由でのデータ保存を開始します');
+        console.log('[SVC] Initializing remote sync...');
         
         // スクレイプ実行
         let data = [];
-        if (storeId === 'kinshicho') {
+        if (storeConfig.type === 'maruhan') {
+            const { scrapeMaruhan } = require('./scraper_maruhan');
+            data = await scrapeMaruhan((current, total) => {
+                if (current % 50 === 0 || current === 1) {
+                    console.log(`[SVC] Processing: ${current}/${total}`);
+                }
+            }, storeConfig);
+        } else if (storeId === 'kinshicho') {
             const { scrapeDeltanetPscube } = require('./scraper_pscube');
             data = await scrapeDeltanetPscube();
         } else if (!storeConfig.ddelta) {
-            console.log(`[CLI] ${storeConfig.name} リアルタイムスクレイプ非対応のためスキップします`);
+            console.log(`[SVC] Target ${storeId} not supported, skipping.`);
             data = [];
         } else {
             data = await scrapeDDelta((current, total, modelName) => {
                 if (current % 5 === 0 || current === 1) {
-                    console.log(`[CLI] 進捗: ${current}/${total} - ${modelName}`);
+                    console.log(`[SVC] Processing: ${current}/${total}`);
                 }
             }, storeConfig);
         }
         
-        console.log(`[CLI] スクレイプ完了: ${data.length}台`);
+        console.log(`[SVC] Collection complete: ${data.length} items`);
         
         if (data.length > 0) {
             const WEB_APP_URL = process.env.WEB_APP_URL || 'http://localhost:7731';
             const apiUrl = `${WEB_APP_URL}/api/upload-realtime`;
             
-            console.log(`[CLI] Webサーバーへデータを転送中... (${apiUrl})`);
+            console.log(`[SVC] Uploading data...`);
             
             try {
                 await pushDataToApi(apiUrl, {
@@ -106,26 +113,23 @@ function pushDataToApi(apiUrl, payloadObj) {
                     machines: data,
                     timestamp: new Date().toISOString()
                 });
-                console.log(`[CLI] ✨ Webサーバー経由でMongoDBへの保存に成功しました！`);
+                console.log(`[SVC] Sync successful.`);
             } catch (apiErr) {
-                console.error(`[CLI] ❌ データ送信エラー: ${apiErr.message}`);
-                console.error(`[CLI] 解決策: .envファイルに WEB_APP_URL=https://あなたのアプリ.onrender.com を記載してください。`);
+                console.error(`[SVC] Sync error: ${apiErr.message}`);
+                console.error(`[SVC] Check endpoint config in .env file.`);
             }
             
-            // 設定5以上の台をサマリー表示
+            // Summary (counts only, no details)
             const high = data.filter(m => m.推定設定 >= 5);
-            console.log(`[CLI] 設定5以上: ${high.length}台`);
-            high.slice(0, 5).forEach(m => {
-                console.log(`  ${m.機種名} 台番${m.台番} 設定${m.推定設定} ${m.実質確率} 期待値¥${m.期待値円}`);
-            });
+            console.log(`[SVC] Flagged items: ${high.length}`);
         } else {
-            console.log('[CLI] データ0台のため保存をスキップしました');
+            console.log('[SVC] No data collected, skipping upload.');
         }
         
         clearTimeout(forceExitTimer);
         process.exit(0);
     } catch (e) {
-        console.error('[CLI] エラー:', e.message || e);
+        console.error('[SVC] Error:', e.message || e);
         clearTimeout(forceExitTimer);
         process.exit(1);
     }

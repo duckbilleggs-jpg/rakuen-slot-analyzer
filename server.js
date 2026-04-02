@@ -258,17 +258,21 @@ app.post('/api/upload-realtime', async (req, res) => {
         
         const saveTimestamp = timestamp || new Date().toISOString();
         
-        // MongoDBへ直接保存
-        await RealtimeCache.findOneAndUpdate(
-            { key: `latest_${storeId}` },
-            { machines, timestamp: saveTimestamp },
-            { upsert: true }
-        );
-        console.log(`[API] ✨ Web経由で ${storeId} のリアルタイムデータを受信・保存完了 (${machines.length}台)`);
-        
-        // オンメモリキャッシュも即座に更新
+        // オンメモリキャッシュも即座に更新 (DB保存エラー時でも画面に反映させるため先に実行)
         cachedRealtimeData[storeId] = machines;
         lastRealtimeFetch[storeId] = saveTimestamp;
+        
+        // MongoDBへ直接保存 (タイムアウト等のエラーをハンドリング)
+        try {
+            await RealtimeCache.findOneAndUpdate(
+                { key: `latest_${storeId}` },
+                { machines, timestamp: saveTimestamp },
+                { upsert: true }
+            );
+            console.log(`[API] ✨ Web経由で ${storeId} のリアルタイムデータを受信・保存完了 (${machines.length}台)`);
+        } catch (dbErr) {
+            console.error(`[API] ⚠️ MongoDB保存エラー (メモリーキャッシュのみ更新しました): ${dbErr.message}`);
+        }
         
         res.json({ status: 'ok', message: 'Data saved successfully via API' });
     } catch (e) {

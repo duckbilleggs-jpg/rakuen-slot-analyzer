@@ -61,6 +61,33 @@
       "id": "akasaka",
       "name": "エスパス 赤坂見附",
       "minrepoTag": "エスパス日拓赤坂見附駅前新館"
+    },
+    {
+      "id": "maruhan_kawaguchi",
+      "name": "マルハン 川口",
+      "type": "maruhan",
+      "maruhanHallId": "2627",
+      "minrepoTag": "マルハン川口店"
+    },
+    {
+      "id": "rakuen_ikebukuro",
+      "name": "楽園 池袋グリーンサイド",
+      "minrepoTag": "楽園池袋店グリーンサイド",
+      "ddelta": {
+        "pmc": "22021035",
+        "clc": "03",
+        "urt": "2173"
+      }
+    },
+    {
+      "id": "arrow_ikegami",
+      "name": "ALLOW 池上",
+      "minrepoTag": "ARROW池上店",
+      "ddelta": {
+        "pmc": "27090018",
+        "clc": "03",
+        "urt": "2000"
+      }
     }
   ],
   "scrape": {

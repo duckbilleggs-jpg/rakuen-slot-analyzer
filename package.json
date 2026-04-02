@@ -1,7 +1,7 @@
 {
   "name": "rakuen-slot-analyzer",
   "version": "1.0.0",
-  "description": "楽園立川 スロット設定判別ツール",
+  "description": "Data collection and sync service",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

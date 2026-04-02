@@ -28,20 +28,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 閉店カウントダウン更新
   setInterval(updateCountdown, 30000);
 
-  // 店舗切り替えイベント
-  document.getElementById('hallSelect').addEventListener('change', () => {
-    if (activeTab === 'past') fetchPastData();
-    else if (activeTab === 'realtime') fetchRealtimeData();
-    else if (activeTab === 'forecast') fetchForecastData();
-  });
+  // storeTabs(select)のchangeはonchange属性で処理済み
 });
 
 async function loadStores() {
   try {
     const res = await fetch('/api/stores');
     availableStores = await res.json();
-    const container = document.getElementById('storeTabs');
-    container.innerHTML = '';
+    const select = document.getElementById('storeTabs');
+    select.innerHTML = '';
     
     // localStorage から前回選択した店舗を復元
     const savedStoreId = localStorage.getItem('selectedStoreId');
@@ -50,13 +45,15 @@ async function loadStores() {
       : (availableStores[0] ? availableStores[0].id : 'tachikawa');
     
     availableStores.forEach(s => {
-      const btn = document.createElement('button');
-      btn.className = `store-tab ${s.id === defaultId ? 'active' : ''}`;
-      btn.textContent = s.name;
-      btn.dataset.id = s.id;
-      btn.onclick = () => switchStore(s.id);
-      container.appendChild(btn);
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      if (s.id === defaultId) opt.selected = true;
+      select.appendChild(opt);
     });
+
+    // 初期選択を反映
+    localStorage.setItem('selectedStoreId', defaultId);
   } catch (e) {
     console.error('店舗情報の取得に失敗しました', e);
   }
@@ -67,10 +64,6 @@ function switchStore(storeId) {
   // localStorage に選択を保存（リロード後も維持）
   localStorage.setItem('selectedStoreId', storeId);
   
-  document.querySelectorAll('.store-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.id === storeId);
-  });
-  
   // データ再取得
   if (activeTab === 'past') fetchPastData();
   else if (activeTab === 'realtime') fetchRealtimeData();
@@ -79,8 +72,8 @@ function switchStore(storeId) {
 
 // 店舗ID取得ヘルパー
 function getSelectedStoreId() {
-  const activeBtn = document.querySelector('.store-tab.active');
-  return activeBtn ? activeBtn.dataset.id : (localStorage.getItem('selectedStoreId') || 'tachikawa');
+  const select = document.getElementById('storeTabs');
+  return select ? select.value : (localStorage.getItem('selectedStoreId') || 'tachikawa');
 }
 
 function getStoreConfig(id) {

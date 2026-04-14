@@ -1,4 +1,4 @@
-﻿/**
+/**
  * scraper_ddelta.js — d-deltanetからリアルタイム出玉情報を取得し、高設定推測を行うモジュール
  * 
  * HTTP GET方式: Puppeteer不要。PADプロジェクトと同じアプローチ。
@@ -603,6 +603,15 @@ function analyzeRealtimeData(machines) {
         } else {
             m.残りG数 = 0; m.期待差枚 = 0; m.期待値円 = 0;
         }
+
+        // 機種タイプと天井残Gを付加
+        m.機種タイプ = machineType;
+        if (machineType === 'AT' || machineType === 'A+AT') {
+            const tenjouG = specs.tenjouG || 800;
+            const mod = m.G数 % tenjouG;
+            m.天井残G = mod === 0 ? 0 : tenjouG - mod;
+        }
+
         highSettingMachines.push(m);
     }
     

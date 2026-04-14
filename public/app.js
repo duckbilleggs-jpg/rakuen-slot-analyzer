@@ -498,6 +498,9 @@ function renderRealtimeTable() {
         }
         const confClass = m.信頼度スコア >= 80 ? 'confidence-high' : m.信頼度スコア >= 50 ? 'confidence-mid' : 'confidence-low';
         const evClass = (currentExpectedYen || 0) >= 0 ? 'td-positive' : 'td-negative';
+        // 理論現在差枚: これまでのG数 × IN3枚 × (理論出率-100)% ÷ 100
+        const mechRate = m.理論出率 || 100;
+        const theoreticalCurrent = Math.floor((m.G数 || 0) * 3 * (mechRate - 100) / 100);
 
         return `
         <tr class="${settingClass}">
@@ -511,7 +514,7 @@ function renderRealtimeTable() {
                 <strong>${m.実質確率 || '-'}</strong><br>
                 <span style="font-size:10px; color:var(--text-secondary);">${m.計算方式 ? '(' + m.計算方式 + ')' : ''}</span>
             </td>
-            <td class="td-num ${(m.現在金額 || 0) >= 0 ? 'td-positive' : 'td-negative'}">¥${(m.現在金額 || 0).toLocaleString()}</td>
+            <td class="td-num ${theoreticalCurrent >= 0 ? 'td-positive' : 'td-negative'}">${theoreticalCurrent >= 0 ? '+' : ''}${theoreticalCurrent.toLocaleString()}</td>
             <td class="td-num">${m.BB回数 || 0}/${m.RB回数 || 0}/${m.ART回数 || 0}</td>
             <td class="td-num">${m.G数 ? m.G数.toLocaleString() : '0'}</td>
             <td class="td-num">${currentRemainingG.toLocaleString()}</td>

@@ -512,7 +512,13 @@ function analyzeRealtimeData(machines) {
             const theoreticalRate = specs[`s${estimatedSetting}`] || 108.0;
             const 期待差枚 = Math.round(残りG数 * config.analysis.inPerGame * (theoreticalRate - 100) / 100);
             const 期待値円 = Math.round(期待差枚 * (config.analysis.coinRate / config.analysis.inPerGame));
-            m.残りG数 = 残りG数; m.期待差枚 = 期待差枚; m.期待値円 = 期待値円; m.理論出率 = theoreticalRate;
+            const 現在金額 = Math.round((m.最高出玉 || 0) * (1000 / 46));
+            
+            m.残りG数 = 残りG数; 
+            m.現在金額 = 現在金額;
+            m.期待差枚 = 期待差枚; 
+            m.期待値円 = 期待値円; 
+            m.理論出率 = theoreticalRate;
         } else {
             m.残りG数 = 0; m.期待差枚 = 0; m.期待値円 = 0;
         }

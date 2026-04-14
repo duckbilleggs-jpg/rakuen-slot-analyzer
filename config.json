@@ -66,6 +66,7 @@
       "id": "rakuen_ikebukuro",
       "name": "楽園 池袋グリーンサイド",
       "minrepoTag": "楽園池袋店グリーンサイド",
+      "usePuppeteer": true,
       "ddelta": {
         "pmc": "22021035",
         "clc": "03",
@@ -76,6 +77,7 @@
       "id": "arrow_ikegami",
       "name": "ARROW 池上",
       "minrepoTag": "ARROW池上店",
+      "usePuppeteer": true,
       "ddelta": {
         "pmc": "27090018",
         "clc": "03",

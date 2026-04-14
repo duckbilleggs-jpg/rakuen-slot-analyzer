@@ -91,6 +91,15 @@ function pushDataToApi(apiUrl, payloadObj) {
         } else if (!storeConfig.ddelta) {
             console.log(`[SVC] Target ${storeId} not supported, skipping.`);
             data = [];
+        } else if (storeConfig.usePuppeteer) {
+            // Puppeteer方式（人間操作模倣 / ボット検知回避）
+            console.log(`[SVC] Using Puppeteer mode for ${storeId}`);
+            const { scrapeDDeltaPuppeteer } = require('./scraper_ddelta_puppeteer');
+            data = await scrapeDDeltaPuppeteer((current, total, modelName) => {
+                if (current % 5 === 0 || current === 1) {
+                    console.log(`[SVC] Processing: ${current}/${total}`);
+                }
+            }, storeConfig);
         } else {
             data = await scrapeDDelta((current, total, modelName) => {
                 if (current % 5 === 0 || current === 1) {

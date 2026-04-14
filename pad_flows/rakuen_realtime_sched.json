@@ -1,0 +1,11 @@
+{
+  "id": "rakuen_realtime_sched",
+  "flow_id": "rakuen_realtime_scrape",
+  "name": "データ収集 (15分毎)",
+  "schedule_type": "cron",
+  "cron_expression": "0,30 9-22 * * *",
+  "interval_seconds": null,
+  "run_at": null,
+  "enabled": true,
+  "created_at": "2026-04-14T16:57:00"
+}

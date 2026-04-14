@@ -1,0 +1,87 @@
+﻿{
+    "id":  "rakuen_realtime_scrape",
+    "name":  "📊 データ同期",
+    "description":  "各拠点のデータを収集しクラウドに同期します。",
+    "steps":  [
+                  {
+                      "action":  "comment",
+                      "params":  {
+                                     "text":  "=== データ収集・同期 ==="
+                                 },
+                      "on_error":  "stop"
+                  },
+                  {
+                      "action":  "comment",
+                      "params":  {
+                                     "text":  "各拠点のデータを収集し、クラウドに同期します。"
+                                 },
+                      "on_error":  "stop"
+                  },
+                  {
+                      "action":  "run_command",
+                      "params":  {
+                                     "command":  "node scrape_realtime_cli.js --store tachikawa",
+                                     "working_dir":  "D:\\Prog\\FI_Prog\\スクレイピング\\deta",
+                                     "timeout":  "900",
+                                     "output_variable":  "ScrapeOutput1"
+                                 },
+                      "on_error":  "continue"
+                  },
+                  {
+                      "action":  "run_command",
+                      "params":  {
+                                     "command":  "node scrape_realtime_cli.js --store sagamihara",
+                                     "working_dir":  "D:\\Prog\\FI_Prog\\スクレイピング\\deta",
+                                     "timeout":  "900",
+                                     "output_variable":  "ScrapeOutput2"
+                                 },
+                      "on_error":  "continue"
+                  },
+                  {
+                      "action":  "run_command",
+                      "params":  {
+                                     "command":  "node scrape_realtime_cli.js --store kinshicho",
+                                     "working_dir":  "D:\\Prog\\FI_Prog\\スクレイピング\\deta",
+                                     "timeout":  "900",
+                                     "output_variable":  "ScrapeOutput3"
+                                 },
+                      "on_error":  "continue"
+                  },
+                  {
+                      "action":  "run_command",
+                      "params":  {
+                                     "command":  "node scrape_realtime_cli.js --store rakuen_ikebukuro",
+                                     "working_dir":  "D:\\Prog\\FI_Prog\\スクレイピング\\deta",
+                                     "timeout":  "900",
+                                     "output_variable":  "ScrapeOutput4"
+                                 },
+                      "on_error":  "continue"
+                  },
+                  {
+                      "action":  "run_command",
+                      "params":  {
+                                     "command":  "node scrape_realtime_cli.js --store arrow_ikegami",
+                                     "working_dir":  "D:\\Prog\\FI_Prog\\スクレイピング\\deta",
+                                     "timeout":  "900",
+                                     "output_variable":  "ScrapeOutput5"
+                                 },
+                      "on_error":  "continue"
+                  },
+                  {
+                      "action":  "log_message",
+                      "params":  {
+                                     "message":  "同期完了",
+                                     "level":  "info"
+                                 },
+                      "on_error":  "continue"
+                  }
+              ],
+    "variables":  {
+
+                  },
+    "created_at":  "2026-03-17T17:00:00",
+    "updated_at":  "2026-04-14T18:27:00",
+    "subflows":  {
+
+                 }
+}

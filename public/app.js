@@ -499,7 +499,6 @@ function renderRealtimeTable() {
         const confClass = m.信頼度スコア >= 80 ? 'confidence-high' : m.信頼度スコア >= 50 ? 'confidence-mid' : 'confidence-low';
         const evClass = (currentExpectedYen || 0) >= 0 ? 'td-positive' : 'td-negative';
         // 理論現在差枚: これまでのG数 × IN3枚 × (理論出率-100)% ÷ 100
-        const mechRate = m.理論出率 || 100;
         const theoreticalCurrent = Math.floor((m.G数 || 0) * 3 * (mechRate - 100) / 100);
 
         return `

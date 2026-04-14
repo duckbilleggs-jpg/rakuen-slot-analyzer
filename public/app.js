@@ -511,7 +511,7 @@ function renderRealtimeTable() {
                 <strong>${m.実質確率 || '-'}</strong><br>
                 <span style="font-size:10px; color:var(--text-secondary);">${m.計算方式 ? '(' + m.計算方式 + ')' : ''}</span>
             </td>
-            <td class="td-num ${m.最高出玉 >= 0 ? 'td-positive' : 'td-negative'}">${m.最高出玉 ? m.最高出玉.toLocaleString() : '-'}</td>
+            <td class="td-num ${(m.現在金額 || 0) >= 0 ? 'td-positive' : 'td-negative'}">¥${(m.現在金額 || 0).toLocaleString()}</td>
             <td class="td-num">${m.BB回数 || 0}/${m.RB回数 || 0}/${m.ART回数 || 0}</td>
             <td class="td-num">${m.G数 ? m.G数.toLocaleString() : '0'}</td>
             <td class="td-num">${currentRemainingG.toLocaleString()}</td>

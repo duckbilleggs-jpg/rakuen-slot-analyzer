@@ -6,6 +6,7 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: node server.js
+    autoDeploy: true
     envVars:
       - key: MONGODB_URI
         sync: false  # Render ダッシュボードで手動入力

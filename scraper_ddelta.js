@@ -421,6 +421,97 @@ function getDefaultThresholds() {
     };
 }
 
+/**
+ * 多指標による信頼度スコア計算 (0〜99)
+ * 
+ * [Aタイプ]
+ *   ① ゲーム数ベース (最大40pt)
+ *   ② BB確率が推定設定の理論値内か (最大20pt)
+ *   ③ RB確率も高設定帯か (最大20pt)
+ *   ④ BB・RBが同設定帯で一致する（アライメントボーナス）(最大15pt)
+ *
+ * [AT機]
+ *   ① ゲーム数ベース (最大40pt)
+ *   ② 初当り確率のS6理論値からの近さ・良さ (最大30pt)
+ *   ③ ヒット数の絶対量チェック（試行回数不足なら減点）(-15pt)
+ */
+function calcConfidenceScore(m, machineType, specs, thresholds, actualProb, estimatedSetting) {
+    // ① ゲーム数ベース (最大40pt)
+    let confidence = 10;
+    if (m.G数 >= 6000) confidence = 40;
+    else if (m.G数 >= 4000) confidence = 30;
+    else if (m.G数 >= 2000) confidence = 20;
+
+    if (estimatedSetting < 5) {
+        // 低設定はゲーム数のみで評価、最大50pt
+        return Math.min(confidence, 50);
+    }
+
+    if (machineType === 'A' || machineType === 'A+AT') {
+        // ========== Aタイプ専用 ==========
+        const bbHits = m.BB回数 || 0;
+        const rbHits = m.RB回数 || 0;
+
+        if (bbHits > 0 && rbHits > 0) {
+            const bbProb = m.G数 / bbHits;
+            const rbProb = m.G数 / rbHits;
+
+            // ② BB確率が推定設定の閾値を満たすか
+            const bbThr = thresholds[`s${estimatedSetting}`] || thresholds.s5 || 130;
+            if (bbProb <= bbThr) confidence += 20;
+            else if (bbProb <= bbThr * 1.05) confidence += 10; // 5%以内のブレは加点
+
+            // ③ RB確率も高設定帯かチェック
+            // RB閾値が未定義の場合はBB閾値の約2倍を目安に推定
+            const rbThresholds = specs.rbProbThresholds || {
+                s6: (thresholds.s6 || 120) * 2.1,
+                s5: (thresholds.s5 || 130) * 2.1,
+                s4: (thresholds.s4 || 140) * 2.1,
+            };
+            let rbEstSetting = 1;
+            if (rbProb <= rbThresholds.s6) rbEstSetting = 6;
+            else if (rbProb <= rbThresholds.s5) rbEstSetting = 5;
+            else if (rbProb <= rbThresholds.s4) rbEstSetting = 4;
+
+            if (rbEstSetting >= 5) confidence += 20;
+            else if (rbEstSetting >= 4) confidence += 10;
+
+            // ④ BBとRBで推定設定が一致するか（アライメントボーナス）
+            if (Math.abs(rbEstSetting - estimatedSetting) <= 1) confidence += 15;
+            
+            // RBが全く引けていなければ信頼度を大きく割り引く
+            if (rbHits === 0 && m.G数 >= 2000) confidence -= 20;
+        }
+
+    } else {
+        // ========== AT機専用 ==========
+        const s6Thr = thresholds.s6 || 220;
+        const s5Thr = thresholds.s5 || 250;
+
+        // ② S6理論値からのズレ量で加算（軽いほど≒良い）
+        if (estimatedSetting >= 6) {
+            const deviationPct = (s6Thr - actualProb) / s6Thr * 100; // 正なら理論値より良い
+            if (deviationPct >= 10) confidence += 30;      // 10%以上 理論より良い → 超確実
+            else if (deviationPct >= 5) confidence += 20;  // 5〜10%
+            else if (deviationPct >= 0) confidence += 15;  // ちょうど S6境界
+            else confidence += 5;                           // 理論より若干重い（誤差範囲内）
+        } else if (estimatedSetting >= 5) {
+            const rangeWidth = s5Thr - s6Thr;
+            const withinRange = (actualProb - s6Thr) / rangeWidth; // S6=0, S5=1
+            if (withinRange <= 0.3) confidence += 15;      // S6境界に近い
+            else if (withinRange <= 0.6) confidence += 10;
+            else confidence += 5;
+        }
+
+        // ③ 初当りの絶対数が少ない場合は減点（試行回数不足）
+        const totalHitsForCheck = (m.BB回数 || 0) + (m.RB回数 || 0) + (m.ART回数 || 0);
+        if (totalHitsForCheck < 10) confidence -= 15;
+        else if (totalHitsForCheck < 20) confidence -= 5;
+    }
+
+    return Math.min(Math.max(confidence, 0), 99);
+}
+
 function analyzeRealtimeData(machines) {
     const db = loadDB();
     const asOfTime = new Date();
@@ -496,10 +587,7 @@ function analyzeRealtimeData(machines) {
         }
         m.推定設定 = estimatedSetting;
 
-        let confidence = 10;
-        if (m.G数 >= 6000) confidence = 95;
-        else if (m.G数 >= 4000) confidence = 75;
-        else if (m.G数 >= 2000) confidence = 50;
+        const confidence = calcConfidenceScore(m, machineType, specs, thresholds, actualProb, estimatedSetting);
         m.信頼度スコア = confidence;
         m.信頼度ラベル = confidence >= 80 ? '★★★ 高' : (confidence >= 50 ? '★★☆ 中' : '★☆☆ 低');
         

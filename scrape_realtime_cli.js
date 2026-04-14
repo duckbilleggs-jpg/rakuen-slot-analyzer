@@ -3,7 +3,7 @@
  * 社内ネットワーク等のMongoDBポート(27017)制限を回避するため、
  * スクリプトからは直接DB接続せず、RenderサーバーのAPI(HTTPS)経由で保存します。
  */
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 const { scrapeDDelta } = require('./scraper_ddelta');
 const fs = require('fs');
 const path = require('path');

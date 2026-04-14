@@ -501,8 +501,13 @@ function renderRealtimeTable() {
         // 理論現在差枚: これまでのG数 × IN3枚 × (理論出率-100)% ÷ 100
         const theoreticalCurrent = Math.floor((m.G数 || 0) * 3 * (mechRate - 100) / 100);
         // AT機: 天井残G / Aタイプ: 理論現在差枚
-        const isAT = m.機種タイプ === 'AT' || m.機種タイプ === 'A+AT';
-        const tenjouVal = m.天井残G != null ? m.天井残G : null;
+        // 機種タイプがない場合は機種名でフォールバック判定
+        const aTypeKeywords = ['ジャグラー','ハナハナ','クランキー','ニューパルサー','チェリーセブン','ゴーゴー'];
+        const isATypeByName = aTypeKeywords.some(kw => (m.機種名||'').includes(kw));
+        const isAT = m.機種タイプ ? (m.機種タイプ === 'AT' || m.機種タイプ === 'A+AT') : !isATypeByName;
+        // 天井残G: サーバーデータにあればそれを使う、なければG数から推定（デフォルト800G天井）
+        const tenjouFallback = 800;
+        const tenjouVal = m.天井残G != null ? m.天井残G : (isAT ? tenjouFallback - (m.G数 % tenjouFallback || tenjouFallback) : null);
         const col4Html = isAT && tenjouVal != null
             ? `<span style="color:${tenjouVal <= 100 ? '#ff6b6b' : tenjouVal <= 200 ? '#ffa94d' : 'var(--text-secondary)'}">残${tenjouVal.toLocaleString()}G</span>`
             : `${theoreticalCurrent >= 0 ? '+' : ''}${theoreticalCurrent.toLocaleString()}`;

@@ -377,19 +377,13 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
     // Step 2: 各機種のデータを取得
     for (let i = 0; i < models.length; i++) {
         const model = models[i];
-        console.log(`[DDelta] (${i+1}/${models.length}) 「${model.name}」`);
-        if (onProgress) onProgress(i + 1, models.length, model.name);
-        
         try {
             const data = await fetchModelData(model);
             if (data.length > 0) {
-                console.log(`[DDelta]   ⭕ ${data.length} 台取得`);
                 results.push(...data);
-            } else {
-                console.log(`[DDelta]   ⚠️ データ0件`);
             }
         } catch (err) {
-            console.log(`[DDelta]   ⚠️ エラー: ${err.message}`);
+            // エラーは無視して次へ
         }
         
         // レートリミット対策: 1〜1.5秒の間隔

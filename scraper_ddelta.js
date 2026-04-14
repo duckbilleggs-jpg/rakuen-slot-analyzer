@@ -84,7 +84,26 @@ async function fetchModelList(storeConfig) {
     
     while (true) {
         console.log(`[DDelta] ${storeConfig.name} ポータル ページ${page} を取得中...`);
-        const html = await fetchHTML(`D0301.do?pmc=${pmc}&clc=${clc}&urt=${urt}&pan=${page}`);
+        
+        // 混雑エラー時のリトライ付きでポータルページを取得
+        let html = null;
+        let retries = 3;
+        while (retries > 0) {
+            const fetched = await fetchHTML(`D0301.do?pmc=${pmc}&clc=${clc}&urt=${urt}&pan=${page}`);
+            if (fetched.includes('混み合って') || fetched.includes('PNW500034')) {
+                console.log(`[DDelta] ⚠️ ポータル混雑エラー。リトライ(3秒待機)... 残り${retries - 1}回`);
+                await sleep(3000);
+                retries--;
+            } else {
+                html = fetched;
+                break;
+            }
+        }
+        if (!html) {
+            console.log(`[DDelta] ❌ ポータル ページ${page} リトライ後もエラー。`);
+            if (page === 1) return [];
+            break;
+        }
         
         // デバッグ: HTML内容の確認
         const d2301Count = (html.match(/D2301/g) || []).length;
@@ -418,25 +437,28 @@ function analyzeRealtimeData(machines) {
         const specs = db[m.機種名] || getDefaultSpecs();
         const machineType = specs.type || 'AT';
         
-        // AT機: RBのみで確率計算、Aタイプ(ノーマル機): BB+RBで合算確率計算
         let totalHits = 0;
         let calcMethod = '';
         let thresholds;
         
         if (machineType === 'A' || machineType === 'A+AT') {
-            // Aタイプ（ジャグラー等ノーマル機）: BB+RB合算
+            // Aタイプ（ジャグラー等ネット機）: BB+RB合算
             totalHits = (m.BB回数 || 0) + (m.RB回数 || 0);
             calcMethod = 'BB+RB';
             thresholds = specs.probThresholds || getDefaultThresholds().probThresholds;
         } else {
-            // AT機: RBのみで設定判別
-            totalHits = m.RB回数 || 0;
-            calcMethod = 'RB';
-            // AT機用のRB確率閾値（rbProbThresholds優先、なければデフォルト）
-            thresholds = specs.rbProbThresholds || { s6: 320, s5: 360, s4: 400 };
+            // AT機: machine_dbのhitColsに基づいて初当たりを計算
+            const hitCols = specs.hitCols || ['BB', 'RB', 'ART'];
+            
+            for (const col of hitCols) {
+                if (col === 'BB') totalHits += (m.BB回数 || 0);
+                if (col === 'RB') totalHits += (m.RB回数 || 0);
+                if (col === 'ART') totalHits += (m.ART回数 || 0);
+            }
+            calcMethod = hitCols.join('+');
+            // AT機用の確率閾値
+            thresholds = specs.probThresholds || { s6: 220, s5: 250, s4: 300 };
         }
-        
-
         
         if (totalHits === 0) {
             m.実質確率 = '-'; m.推定設定 = 0; m.信頼度スコア = 0; m.信頼度ラベル = '-';
@@ -450,27 +472,34 @@ function analyzeRealtimeData(machines) {
         m.計算方式 = calcMethod;
 
         let estimatedSetting = 1;
-        console.log(`[DEBUG] 台番=${m.台番}, G数=${m.G数}, minGames=${config && config.analysis ? config.analysis.minGames : 'undefined'}`);
         if (m.G数 < (config.analysis ? config.analysis.minGames : 2000)) {
-            // ユーザー指定の最低ゲーム数（デフォルト2000）を満たさない台は設定5, 6の判別から除外する
-            console.log(`[DEBUG] -> Entering IF block (G数 < minGames)`);
             estimatedSetting = 0;
-            console.log(`[DEBUG] -> estimatedSetting is now ${estimatedSetting}`);
         } else {
-            console.log(`[DEBUG] -> Entering ELSE block`);
             if (actualProb <= thresholds.s6) estimatedSetting = 6;
             else if (actualProb <= thresholds.s5) estimatedSetting = 5;
             else if (actualProb <= thresholds.s4) estimatedSetting = 4;
             else estimatedSetting = m.G数 >= 1000 ? 2 : 0;
-            console.log(`[DEBUG] -> estimatedSetting is now ${estimatedSetting} based on actualProb=${actualProb}`);
+            
+            // 【新規追加】AタイプのRB確率によるダウングレード判定
+            if ((machineType === 'A' || machineType === 'A+AT') && estimatedSetting >= 5) {
+                const rbHits = m.RB回数 || 0;
+                if (rbHits > 0) {
+                    const rbProb = m.G数 / rbHits;
+                    // RBが設定1より重い(例:1/380より悪い)場合は設定4未満にダウン
+                    if (rbProb > 380) {
+                        estimatedSetting = 4;
+                    }
+                } else if (m.G数 >= 2000 && rbHits === 0) {
+                    estimatedSetting = 2; // RBが全く引けていない
+                }
+            }
         }
-        console.log(`[DEBUG] -> Final estimatedSetting to assign is ${estimatedSetting}`);
         m.推定設定 = estimatedSetting;
 
         let confidence = 10;
-        if (m.G数 >= 5000) confidence = 85;
-        else if (m.G数 >= 3000) confidence = 50;
-        else if (m.G数 >= 1000) confidence = 30;
+        if (m.G数 >= 6000) confidence = 95;
+        else if (m.G数 >= 4000) confidence = 75;
+        else if (m.G数 >= 2000) confidence = 50;
         m.信頼度スコア = confidence;
         m.信頼度ラベル = confidence >= 80 ? '★★★ 高' : (confidence >= 50 ? '★★☆ 中' : '★☆☆ 低');
         

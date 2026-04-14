@@ -1,4 +1,4 @@
-/**
+﻿/**
  * scraper_ddelta.js — d-deltanetからリアルタイム出玉情報を取得し、高設定推測を行うモジュール
  * 
  * HTTP GET方式: Puppeteer不要。PADプロジェクトと同じアプローチ。
@@ -83,7 +83,7 @@ async function fetchModelList(storeConfig) {
     const { pmc, clc, urt } = storeConfig.ddelta;
     
     while (true) {
-        console.log(`[DDelta] ${storeConfig.name} ポータル ページ${page} を取得中...`);
+        
         
         // 混雑エラー時のリトライ付きでポータルページを取得
         let html = null;
@@ -91,7 +91,7 @@ async function fetchModelList(storeConfig) {
         while (retries > 0) {
             const fetched = await fetchHTML(`D0301.do?pmc=${pmc}&clc=${clc}&urt=${urt}&pan=${page}`);
             if (fetched.includes('混み合って') || fetched.includes('PNW500034')) {
-                console.log(`[DDelta] ⚠️ ポータル混雑エラー。リトライ(3秒待機)... 残り${retries - 1}回`);
+                
                 await sleep(3000);
                 retries--;
             } else {
@@ -100,20 +100,20 @@ async function fetchModelList(storeConfig) {
             }
         }
         if (!html) {
-            console.log(`[DDelta] ❌ ポータル ページ${page} リトライ後もエラー。`);
+            
             if (page === 1) return [];
             break;
         }
         
         // デバッグ: HTML内容の確認
         const d2301Count = (html.match(/D2301/g) || []).length;
-        console.log(`[DDelta] HTML長: ${html.length}文字, D2301出現: ${d2301Count}回, 先頭: ${html.substring(0, 100).replace(/\n/g, ' ')}`);
+        
         
         // エラーページチェック
         if (html.includes('エラーページ') || html.includes('表示できません')) {
-            console.log(`[DDelta] ⚠️ ポータル ページ${page} エラー。`);
+            
             if (page === 1) {
-                console.log('[DDelta] ❌ ポータルにアクセスできません。営業時間外の可能性があります。');
+                
                 return [];
             }
             break;
@@ -140,7 +140,7 @@ async function fetchModelList(storeConfig) {
             }
         }
         
-        console.log(`[DDelta] ページ${page}: ${pageCount} 機種`);
+        
         
         // 次ページリンクがあるかチェック
         const nextPagePattern = `pan=${page + 1}`;
@@ -168,12 +168,12 @@ async function fetchModelData(modelInfo) {
     try {
         html = await fetchHTML(url);
     } catch (e) {
-        console.log(`[DDelta]   ⚠️ 機種ページ取得失敗: ${e.message}`);
+        
         return [];
     }
     
     if (html.includes('エラーページ') || html.includes('表示できません')) {
-        console.log(`[DDelta]   ⚠️ 機種ページエラー（データ表示不可）`);
+        
         return [];
     }
     
@@ -187,7 +187,7 @@ async function fetchModelData(modelInfo) {
     const dataListMatch = d3301Match || d2901Match;
     
     if (!dataListMatch) {
-        console.log(`[DDelta]   ⚠️ データリンクなし。直接テーブルを試みます。`);
+        
         return parseDataTable(html, name);
     }
     
@@ -223,7 +223,7 @@ async function fetchModelData(modelInfo) {
         data2Html = await fetchWithRetry(data2Url);
     }
     
-    console.log(`[DDelta]   ✅ データ取得 (Data1: ${dataHtml.length}文字, Data2: ${data2Html ? data2Html.length : 0}文字)`);
+    
     return parseDataTable(dataHtml, data2Html, name);
 }
 
@@ -235,19 +235,19 @@ async function fetchWithRetry(url) {
         try {
             html = await fetchHTML(url);
         } catch (e) {
-            console.log(`[DDelta]   ⚠️ 取得失敗: ${e.message}`);
+            
             return null;
         }
         
         if (html.includes('エラーページ') || html.includes('混み合って')) {
-            console.log(`[DDelta]   ⚠️ レートリミット。リトライ(3秒待機)... 残り${retries-1}回`);
+            
             await sleep(3000);
             retries--;
         } else {
             return html;
         }
     }
-    console.log(`[DDelta]   ❌ リトライ後もエラー`);
+    
     return null;
 }
 
@@ -341,15 +341,15 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
     if (!storeConfig) {
         storeConfig = config.stores.find(s => s.id === 'tachikawa');
     }
-    console.log(`[DDelta] HTTP GET方式でリアルタイムデータの取得を開始します (${storeConfig.name})...`);
+    
     
     // セッション初期化: トップページ→Cookieポリシー承諾
     sessionCookies = '';
     lastAccessUrl = '';
-    console.log('[DDelta] セッション初期化中...');
+    
     await fetchHTML('https://www.d-deltanet.com/');
     await fetchHTML(`${BASE_URL}/CommonSetCookie.do?key=cookie.policy.portal.agree&value=1678927575000`);
-    console.log('[DDelta] Cookie承諾完了');
+    
     
     const results = [];
     
@@ -357,7 +357,7 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
     const models = await fetchModelList(storeConfig);
     
     if (models.length === 0) {
-        console.log('[DDelta] ❌ 機種リストが空です。');
+        
         return [];
     }
     
@@ -367,12 +367,12 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
         const fs = require('fs');
         const path = require('path');
         fs.writeFileSync(path.join(__dirname, 'slot46_models.json'), JSON.stringify(modelNames, null, 2), 'utf8');
-        console.log(`[DDelta] 46円スロット機種リスト保存: ${modelNames.length}機種`);
+        
     } catch (e) {
-        console.log(`[DDelta] 機種リストファイル保存スキップ（CI環境）: ${modelNames.length}機種`);
+        
     }
     
-    console.log(`[DDelta] 合計 ${models.length} 機種を発見。データ取得を開始...\n`);
+    
     
     // Step 2: 各機種のデータを取得
     for (let i = 0; i < models.length; i++) {
@@ -394,13 +394,12 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
     const slot46Numbers = [...new Set(results.map(m => m.台番))].sort((a, b) => a - b);
     try {
         fs.writeFileSync(path.join(__dirname, 'slot46_numbers.json'), JSON.stringify(slot46Numbers, null, 2), 'utf8');
-        console.log(`[DDelta] 46円スロット台番号リスト保存: ${slot46Numbers.length}台`);
+        
     } catch (e) {
-        console.log(`[DDelta] 台番号リストファイル保存スキップ（CI環境）: ${slot46Numbers.length}台`);
+        
     }
     
-    console.log(`\n[DDelta] 合計 ${results.length} 台の生データを取得。分析開始...`);
-    return analyzeRealtimeData(results);
+        return analyzeRealtimeData(results);
 }
 
 // ========================================
@@ -625,11 +624,12 @@ if (require.main === module) {
         }
 
         const results = await scrapeDDelta(null, storeConfig);
-        console.log(`\n=== リアルタイム抽出結果 (全${results.length}台 - ${storeConfig.name}) ===`);
+        
         const high = results.filter(m => m.推定設定 >= 5);
-        console.log(`設定5以上: ${high.length}台`);
-        console.log(JSON.stringify(high.slice(0, 10), null, 2));
+                
     })();
 }
 
 module.exports = { scrapeDDelta, analyzeRealtimeData };
+
+

@@ -70,11 +70,10 @@ function pushDataToApi(apiUrl, payloadObj) {
         process.exit(1);
     }
 
-    console.log(`[SVC] Task started (target: ${storeId})`);
-    console.log(`[SVC] Time: ${new Date().toISOString()}`);
+
     
     try {
-        console.log('[SVC] Initializing remote sync...');
+
         
         // スクレイプ実行
         let data = [];
@@ -93,13 +92,13 @@ function pushDataToApi(apiUrl, payloadObj) {
             data = await scrapeDDelta(null, storeConfig);
         }
         
-        console.log(`[SVC] Collection complete: ${data.length} items`);
+
         
         if (data.length > 0) {
             const WEB_APP_URL = process.env.WEB_APP_URL || 'http://localhost:7731';
             const apiUrl = `${WEB_APP_URL}/api/upload-realtime`;
             
-            console.log(`[SVC] Uploading data...`);
+
             
             try {
                 await pushDataToApi(apiUrl, {
@@ -115,9 +114,9 @@ function pushDataToApi(apiUrl, payloadObj) {
             
             // Summary (counts only, no details)
             const high = data.filter(m => m.推定設定 >= 5);
-            console.log(`[SVC] Flagged items: ${high.length}`);
+
         } else {
-            console.log('[SVC] No data collected, skipping upload.');
+
         }
         
         clearTimeout(forceExitTimer);

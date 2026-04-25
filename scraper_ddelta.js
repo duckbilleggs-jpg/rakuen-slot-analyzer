@@ -605,20 +605,35 @@ function analyzeRealtimeData(machines) {
         m.計算方式 = calcMethod;
 
         let estimatedSetting = 1;
-        if (m.G数 < (config.analysis ? config.analysis.minGames : 2000)) {
-            estimatedSetting = 0;
+        const minGames = config.analysis ? config.analysis.minGames : 2000;
+
+        if (m.G数 < minGames) {
+            // G数が少なくても確率が明らかにS5/S6水準かつヒット数が5回以上あれば暫定候補とする
+            // ※ G数不足なので信頼度は低くなる
+            if (totalHits >= 5) {
+                const quickProb = m.G数 / totalHits;
+                if (quickProb <= thresholds.s6) {
+                    estimatedSetting = 6; // 暫定S6
+                } else if (quickProb <= thresholds.s5) {
+                    estimatedSetting = 5; // 暫定S5
+                } else {
+                    estimatedSetting = 0; // G数不足 & 確率も普通
+                }
+            } else {
+                estimatedSetting = 0; // ヒット数が少なすぎて判定不能
+            }
         } else {
             if (actualProb <= thresholds.s6) estimatedSetting = 6;
             else if (actualProb <= thresholds.s5) estimatedSetting = 5;
             else if (actualProb <= thresholds.s4) estimatedSetting = 4;
             else estimatedSetting = m.G数 >= 1000 ? 2 : 0;
             
-            // 【新規追加】AタイプのRB確率によるダウングレード判定
+            // AタイプのRB確率によるダウングレード判定
             if ((machineType === 'A' || machineType === 'A+AT') && estimatedSetting >= 5) {
                 const rbHits = m.RB回数 || 0;
                 if (rbHits > 0) {
                     const rbProb = m.G数 / rbHits;
-                    // RBが設定1より重い(例:1/380より悪い)場合は設定4未満にダウン
+                    // RBが設定1より重い(1/380より悪い)場合は設定4にダウン
                     if (rbProb > 380) {
                         estimatedSetting = 4;
                     }
@@ -627,11 +642,12 @@ function analyzeRealtimeData(machines) {
                 }
             }
 
-            // 【新規追加】AT機で確率が異常に良すぎる場合はセット数をカウントしているとみなし、判定不能(設定1扱い)とする
-            // 実際に右肩下がり(差枚マイナス)なのに設定6と判定される問題への対応
+            // AT機で確率が異常に良すぎる場合の安全チェック
+            // ※ G数が少ない台(500未満)のみ適用。十分に回っている台は誤降格しない
             if (machineType !== 'A' && machineType !== 'A+AT' && estimatedSetting >= 5) {
                 const s6prob = thresholds.s6 || 220;
-                if (actualProb < 130 || actualProb < s6prob * 0.55) {
+                if (m.G数 < 500 && (actualProb < 130 || actualProb < s6prob * 0.55)) {
+                    // G数が少なく確率が異常に良い → セット数カウントの可能性が高い
                     estimatedSetting = 1;
                 }
             }

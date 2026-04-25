@@ -414,11 +414,11 @@ function renderRealtimeTable() {
 
     let filtered = [...currentData.realtime];
 
-    // 設定フィルタ (minGames 未満の台に高設定フラグが立っているのをブロック)
-    const minGamesVal = parseInt(document.getElementById('cfgMinGames').value) || 2000;
+    // 設定フィルタ
     const settingFilter = document.getElementById('realtimeSettingFilter').value;
     if (settingFilter === 'high') {
-        filtered = filtered.filter(m => m.推定設定 >= 5 && m.G数 >= minGamesVal);
+        // G数チェックはサーバー側で制御済み（暫定候補もここで表示する）
+        filtered = filtered.filter(m => m.推定設定 >= 5);
     }
 
     // 機種フィルタ
@@ -477,10 +477,7 @@ function renderRealtimeTable() {
         const currentExpectedYen = m.期待値円 || Math.floor(currentExpectedSamai * (46 / 3)); 
 
         let displaySetting = m.推定設定;
-        // 最低G数に満たない場合、設定5・6の判別を無効化（1〜4はそのままか、もしくは全て無効化するか？「設定5,6の判別をするように」とのことなので5,6のみ対象とする）
-        if (m.G数 < minGames && (displaySetting === 5 || displaySetting === 6)) {
-            displaySetting = 0; // 0になると '-' 表示になる
-        }
+        // G数が少ない暫定候補は表示するが、信頼度ラベルで「低」と示す（上書きしない）
 
         let settingClass = '';
         let badgeClass = '';

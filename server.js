@@ -586,6 +586,14 @@ async function runRealtimeScrape() {
                     lastRealtimeFetch[store.id] = new Date().toISOString();
                     console.log(`[Server] ${store.name} リアルタイム取得完了 (${data.length}台)`);
 
+                    // 新機種を machine_db.json へ自動登録（新台入替対応）
+                    const newMachineNames = [...new Set(data.map(m => m.機種名).filter(Boolean))];
+                    if (newMachineNames.length > 0) {
+                        updateDBForNewMachines(newMachineNames).catch(e =>
+                            console.error(`[Server] ${store.name} machine_db更新エラー: ${e.message}`)
+                        );
+                    }
+
                     // MongoDBにキャッシュ保存
                     try {
                         await RealtimeCache.findOneAndUpdate(

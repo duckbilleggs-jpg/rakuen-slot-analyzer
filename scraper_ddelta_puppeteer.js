@@ -1,4 +1,4 @@
-﻿/**
+/**
  * scraper_ddelta_puppeteer.js — Puppeteerで人間操作を模倣してd-deltanetからデータを取得
  *
  * HTTP GETではボット検知されるケース（PNW500034エラー）向けの代替スクレイパー。
@@ -350,6 +350,44 @@ async function scrapeDDeltaPuppeteer(onProgress, storeConfig = null) {
         }
 
         
+        // ====================================================
+        // 台番ホワイトリスト & 機種→台番マッピングを自動更新
+        // 新台入替で台番・機種名が変わっても自動追従するため
+        // ====================================================
+        if (results.length > 0) {
+            const slot46Numbers = [...new Set(results.map(m => m.台番))].sort((a, b) => a - b);
+            try {
+                fs.writeFileSync(
+                    path.join(__dirname, `slot46_${storeConfig.id}.json`),
+                    JSON.stringify(slot46Numbers, null, 2),
+                    'utf8'
+                );
+                console.log(`[PUP] 台番ホワイトリスト更新: ${slot46Numbers.length}台 → slot46_${storeConfig.id}.json`);
+            } catch (e) {
+                console.log(`[PUP] 台番リスト保存失敗: ${e.message}`);
+            }
+
+            // 機種名→台番マッピングも保存
+            try {
+                const machineMap = {};
+                for (const m of results) {
+                    if (!machineMap[m.機種名]) machineMap[m.機種名] = [];
+                    machineMap[m.機種名].push(m.台番);
+                }
+                for (const name of Object.keys(machineMap)) {
+                    machineMap[name].sort((a, b) => a - b);
+                }
+                fs.writeFileSync(
+                    path.join(__dirname, `machine_map_${storeConfig.id}.json`),
+                    JSON.stringify(machineMap, null, 2),
+                    'utf8'
+                );
+                console.log(`[PUP] 機種→台番マッピング更新 → machine_map_${storeConfig.id}.json`);
+            } catch (e) { /* 保存失敗は無視 */ }
+        } else {
+            console.log('[PUP] 取得台数0のため台番ホワイトリストは更新しません（前回のデータを保持）');
+        }
+
         // scraper_ddelta.jsの analyzeRealtimeData を流用
         const { analyzeRealtimeData } = require('./scraper_ddelta');
         return analyzeRealtimeData(results);

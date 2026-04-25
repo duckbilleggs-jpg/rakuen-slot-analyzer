@@ -357,19 +357,20 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
     const models = await fetchModelList(storeConfig);
     
     if (models.length === 0) {
-        
+        console.log('[DDelta] 機種リスト取得失敗 → 空リスト返却');
         return [];
     }
     
-    // 46円スロット機種名リストをファイルに保存（5円スロット除外用）
+    // 46円スロット機種名リストをファイルに保存（汎用 + storeId別）
     const modelNames = [...new Set(models.map(m => m.name))].sort();
     try {
-        const fs = require('fs');
-        const path = require('path');
+        // 共通ファイル（後方互換）
         fs.writeFileSync(path.join(__dirname, 'slot46_models.json'), JSON.stringify(modelNames, null, 2), 'utf8');
-        
+        // storeId別ファイル（新規追加）
+        fs.writeFileSync(path.join(__dirname, `slot46_models_${storeConfig.id}.json`), JSON.stringify(modelNames, null, 2), 'utf8');
+        console.log(`[DDelta] 機種名リスト更新: ${modelNames.length}機種 → slot46_models_${storeConfig.id}.json`);
     } catch (e) {
-        
+        console.log(`[DDelta] 機種名リスト保存失敗: ${e.message}`);
     }
     
     
@@ -390,16 +391,61 @@ async function scrapeDDelta(onProgress, storeConfig = null) {
         await sleep(1000 + Math.floor(Math.random() * 500));
     }
     
-    // 46円スロットの台番号リストを保存（5円スロット除外用ホワイトリスト）
-    const slot46Numbers = [...new Set(results.map(m => m.台番))].sort((a, b) => a - b);
-    try {
-        fs.writeFileSync(path.join(__dirname, 'slot46_numbers.json'), JSON.stringify(slot46Numbers, null, 2), 'utf8');
-        
-    } catch (e) {
-        
+    // ====================================================
+    // 46円スロットの台番号リストをstoreId別に保存
+    // ※ 新台入替で台番・機種名が変わっても自動追従するため
+    //    毎スクレイプ完了後に必ず上書き更新する
+    // ====================================================
+    if (results.length > 0) {
+        const slot46Numbers = [...new Set(results.map(m => m.台番))].sort((a, b) => a - b);
+        try {
+            // storeId別ファイル（filter46Only が優先的に読む）
+            fs.writeFileSync(
+                path.join(__dirname, `slot46_${storeConfig.id}.json`),
+                JSON.stringify(slot46Numbers, null, 2),
+                'utf8'
+            );
+            console.log(`[DDelta] 台番ホワイトリスト更新: ${slot46Numbers.length}台 → slot46_${storeConfig.id}.json`);
+
+            // 後方互換: slot46_numbers.json も更新（storeId未指定時のフォールバック用）
+            // ただし tachikawa のみ（他の店舗で上書きしない）
+            if (storeConfig.id === 'tachikawa') {
+                fs.writeFileSync(
+                    path.join(__dirname, 'slot46_numbers.json'),
+                    JSON.stringify(slot46Numbers, null, 2),
+                    'utf8'
+                );
+            }
+        } catch (e) {
+            console.log(`[DDelta] 台番リスト保存失敗: ${e.message}`);
+        }
+
+        // 機種名→台番マッピングを保存（どの機種が何番台を使っているか）
+        // 新台入替後にデバッグしやすくするため
+        try {
+            const machineMap = {};
+            for (const m of results) {
+                if (!machineMap[m.機種名]) machineMap[m.機種名] = [];
+                machineMap[m.機種名].push(m.台番);
+            }
+            // 台番をソート
+            for (const name of Object.keys(machineMap)) {
+                machineMap[name].sort((a, b) => a - b);
+            }
+            fs.writeFileSync(
+                path.join(__dirname, `machine_map_${storeConfig.id}.json`),
+                JSON.stringify(machineMap, null, 2),
+                'utf8'
+            );
+            console.log(`[DDelta] 機種→台番マッピング更新 → machine_map_${storeConfig.id}.json`);
+        } catch (e) {
+            // 保存失敗は無視
+        }
+    } else {
+        console.log('[DDelta] 取得台数0のため台番ホワイトリストは更新しません（前回のデータを保持）');
     }
     
-        return analyzeRealtimeData(results);
+    return analyzeRealtimeData(results);
 }
 
 // ========================================
@@ -484,7 +530,8 @@ function calcConfidenceScore(m, machineType, specs, thresholds, actualProb, esti
         // ② S6理論値からのズレ量で加算（軽いほど≒良い）
         if (estimatedSetting >= 6) {
             const deviationPct = (s6Thr - actualProb) / s6Thr * 100; // 正なら理論値より良い
-            if (deviationPct >= 10) confidence += 30;      // 10%以上 理論より良い → 超確実
+            if (deviationPct >= 20) confidence += 40;      // 20%以上 理論より良い → 超確実
+            else if (deviationPct >= 10) confidence += 30; // 10%〜20%
             else if (deviationPct >= 5) confidence += 20;  // 5〜10%
             else if (deviationPct >= 0) confidence += 15;  // ちょうど S6境界
             else confidence += 5;                           // 理論より若干重い（誤差範囲内）
@@ -496,10 +543,12 @@ function calcConfidenceScore(m, machineType, specs, thresholds, actualProb, esti
             else confidence += 5;
         }
 
-        // ③ 初当りの絶対数が少ない場合は減点（試行回数不足）
+        // ③ 初当りの絶対数が少ない場合は減点、十分な試行回数があれば加点
         const totalHitsForCheck = (m.BB回数 || 0) + (m.RB回数 || 0) + (m.ART回数 || 0);
         if (totalHitsForCheck < 10) confidence -= 15;
         else if (totalHitsForCheck < 20) confidence -= 5;
+        else if (totalHitsForCheck >= 40) confidence += 15; // 試行回数十分で確率を維持しているなら信頼度アップ
+        else if (totalHitsForCheck >= 30) confidence += 10;
     }
 
     return Math.min(Math.max(confidence, 0), 99);
@@ -575,6 +624,15 @@ function analyzeRealtimeData(machines) {
                     }
                 } else if (m.G数 >= 2000 && rbHits === 0) {
                     estimatedSetting = 2; // RBが全く引けていない
+                }
+            }
+
+            // 【新規追加】AT機で確率が異常に良すぎる場合はセット数をカウントしているとみなし、判定不能(設定1扱い)とする
+            // 実際に右肩下がり(差枚マイナス)なのに設定6と判定される問題への対応
+            if (machineType !== 'A' && machineType !== 'A+AT' && estimatedSetting >= 5) {
+                const s6prob = thresholds.s6 || 220;
+                if (actualProb < 130 || actualProb < s6prob * 0.55) {
+                    estimatedSetting = 1;
                 }
             }
         }

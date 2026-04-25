@@ -642,16 +642,42 @@ function analyzeRealtimeData(machines) {
                 }
             }
 
-            // AT機で確率が異常に良すぎる場合の安全チェック
-            // ※ G数が少ない台(500未満)のみ適用。十分に回っている台は誤降格しない
+
+            // AT機のセット数カウント検出（G数に関わらず適用）
+            // セット数を初当りとしてカウントする機種は確率が異常に良く見える
             if (machineType !== 'A' && machineType !== 'A+AT' && estimatedSetting >= 5) {
                 const s6prob = thresholds.s6 || 220;
+
+                // G数が少ない段階での極端な好確率 → セット数カウントの強い疑い
                 if (m.G数 < 500 && (actualProb < 130 || actualProb < s6prob * 0.55)) {
-                    // G数が少なく確率が異常に良い → セット数カウントの可能性が高い
+                    estimatedSetting = 1;
+                }
+                // G数が多くても: S6理論値より35%以上良い確率 → セット数カウントの疑い
+                else if (actualProb < s6prob * 0.65) {
                     estimatedSetting = 1;
                 }
             }
+
+            // 【差枚パフォーマンスチェック】
+            // d-deltanetのdata2で「差枚」列が取得できている場合(値が負の場合)、
+            // 実際は出ていない台 → S5/S6は考えにくい → 設定3以下に降格
+            const 差枚実績 = m.最高出玉 || 0;
+            if (estimatedSetting >= 5 && 差枚実績 < 0) {
+                // 右肩下がり（差枚マイナス）なのに高設定は矛盾する
+                estimatedSetting = Math.min(estimatedSetting, 3);
+            }
+            // 差枚が取れており、G数なりの理論期待値を大幅に下回っている場合も降格
+            // S4理論値(105%)ベースで計算: G数 × 3枚IN × 5% = 期待差枚
+            if (estimatedSetting >= 5 && 差枚実績 !== 0 && m.G数 >= 1000) {
+                const s4rate = specs.s4 || 105.0;
+                const expectedS4Samai = m.G数 * 3 * (s4rate - 100) / 100;
+                // 実績が設定4の期待差枚の20%にも満たない場合はS5/S6はあり得ない
+                if (差枚実績 < expectedS4Samai * 0.2) {
+                    estimatedSetting = Math.min(estimatedSetting, 3);
+                }
+            }
         }
+
         m.推定設定 = estimatedSetting;
 
         const confidence = calcConfidenceScore(m, machineType, specs, thresholds, actualProb, estimatedSetting);

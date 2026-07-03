@@ -4,7 +4,59 @@
 const fs = require('fs');
 const path = require('path');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
-const { loadDB, getDefaultSpecs } = require('./machine_lookup');
+const { loadDB, getDefaultSpecs, findSpecs } = require('./machine_lookup');
+
+/**
+ * 機種タイプ別の1ゲームあたり差枚の標準偏差（枚）
+ * AT機は荒く、ノーマル機はマイルド。出率の標準偏差(%)は
+ * σ_rate = σ_coin / (3 × √G) × 100 で求まる。
+ */
+const TYPE_SIGMA = { 'A': 6, 'A+AT': 9, 'AT': 16 };
+
+/**
+ * 実出率とG数から各設定の事後確率を計算（正規近似ベイズ）
+ * @param {number} actualRate - 実出率(%)
+ * @param {number} games - 総ゲーム数
+ * @param {Object} specs - 機種スペック (s1..s6, type)
+ * @returns {Object|null} { posterior: {1:p,...}, best: 設定, p56: 設定5以上の確率 }
+ */
+function settingPosterior(actualRate, games, specs) {
+  if (!actualRate || actualRate <= 0 || !games || games <= 0) return null;
+  const sigmaCoin = TYPE_SIGMA[specs.type] || TYPE_SIGMA['AT'];
+  const sigmaRate = (sigmaCoin / (3 * Math.sqrt(games))) * 100;
+
+  const settings = [];
+  for (let s = 1; s <= 6; s++) {
+    if (specs[`s${s}`]) settings.push({ label: s, theo: specs[`s${s}`] });
+  }
+  if (settings.length < 2) return null;
+
+  // 尤度（一様事前分布）
+  let total = 0;
+  for (const st of settings) {
+    const z = (actualRate - st.theo) / sigmaRate;
+    st.lik = Math.exp(-0.5 * z * z);
+    total += st.lik;
+  }
+  if (total <= 0) {
+    // 全設定から極端に外れている場合は最も近い設定に確率1
+    let nearest = settings[0];
+    for (const st of settings) {
+      if (Math.abs(actualRate - st.theo) < Math.abs(actualRate - nearest.theo)) nearest = st;
+    }
+    nearest.lik = 1; total = 1;
+  }
+
+  const posterior = {};
+  let best = settings[0], p56 = 0;
+  for (const st of settings) {
+    const p = st.lik / total;
+    posterior[st.label] = p;
+    if (p > (posterior[best.label] || 0)) best = st;
+    if (st.label >= 5) p56 += p;
+  }
+  return { posterior, best: best.label, p56 };
+}
 
 /**
  * 設定判別＋期待値計算のメイン関数
@@ -17,29 +69,28 @@ function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null, cu
   const db = loadDB();
   const results = [];
 
+  // 設定5以上と判定する事後確率のしきい値（config.analysis.minP56 で調整可）
+  const minP56 = (currentConfig.analysis && currentConfig.analysis.minP56) || 0.5;
+
   for (const m of machines) {
     // G数が最低基準未満 → スキップ
     if (m.G数 < currentConfig.analysis.minGames) continue;
 
-    // 機種の理論値を取得
-    const specs = db[m.機種名] || getDefaultSpecs();
+    // 機種の理論値を取得（文字化け機種名にも対応）
+    const specs = findSpecs(m.機種名, db) || getDefaultSpecs();
 
-    // 設定5の理論出率がない場合スキップ
-    if (!specs.s5) continue;
+    // ベイズ推定: 各設定の事後確率
+    const est = settingPosterior(m.出率, m.G数, specs);
+    if (!est) continue;
 
-    // 実出率が設定5の理論値以上か判定
-    if (m.出率 < specs.s5) continue;
+    // 設定5以上の事後確率がしきい値未満 → スキップ
+    if (est.p56 < minP56 || est.best < 5) continue;
 
-    // 推定設定
-    let estimatedSetting;
-    if (specs.s6 && m.出率 >= specs.s6) {
-      estimatedSetting = 6;
-    } else {
-      estimatedSetting = 5;
-    }
+    const estimatedSetting = est.best;
 
-    // 信頼度
-    const confidence = calcConfidence(m.G数);
+    // 信頼度 = 設定5以上の事後確率(%) をG数信頼度で減衰
+    const gamesFactor = Math.min(1, Math.sqrt(m.G数 / 6000));
+    const confidence = Math.round(est.p56 * 100 * gamesFactor);
 
     // 期待値計算: 差枚ベース (リアルタイムと同じ方式)
     const coinRate = currentConfig.analysis.coinRate || 46;
@@ -49,6 +100,7 @@ function analyzeHighSetting(machines, asOfTime = new Date(), reportId = null, cu
     results.push({
       ...m,
       推定設定: estimatedSetting,
+      設定56確率: Math.round(est.p56 * 100),
       信頼度: confidence,
       信頼度ラベル: confidenceLabel(confidence),
       理論出率: specs[`s${estimatedSetting}`],
@@ -70,8 +122,8 @@ function analyzeAll(machines) {
   const db = loadDB();
 
   return machines.map(m => {
-    const specs = db[m.機種名] || getDefaultSpecs();
-    let estimatedSetting = estimateSetting(m.出率, specs);
+    const specs = findSpecs(m.機種名, db) || getDefaultSpecs();
+    let estimatedSetting = estimateSetting(m.出率, specs, m.G数);
 
     return {
       ...m,
@@ -82,26 +134,26 @@ function analyzeAll(machines) {
 }
 
 /**
- * 出率から推定設定を算出（全設定分）
+ * 出率から推定設定を算出
+ * G数が与えられればベイズ推定(最尤設定)、なければ最近傍の理論出率
  */
-function estimateSetting(actualRate, specs) {
+function estimateSetting(actualRate, specs, games) {
   if (!actualRate || actualRate <= 0) return '?';
 
-  const settings = [
-    { key: 's6', label: 6 },
-    { key: 's5', label: 5 },
-    { key: 's4', label: 4 },
-    { key: 's3', label: 3 },
-    { key: 's2', label: 2 },
-    { key: 's1', label: 1 },
-  ];
-
-  for (const s of settings) {
-    if (specs[s.key] && actualRate >= specs[s.key]) {
-      return s.label;
-    }
+  if (games && games > 0) {
+    const est = settingPosterior(actualRate, games, specs);
+    if (est) return est.best;
   }
-  return 1;
+
+  // フォールバック: 最も理論出率が近い設定
+  let best = null, bestDiff = Infinity;
+  for (let s = 1; s <= 6; s++) {
+    const theo = specs[`s${s}`];
+    if (!theo) continue;
+    const diff = Math.abs(actualRate - theo);
+    if (diff < bestDiff) { bestDiff = diff; best = s; }
+  }
+  return best || '?';
 }
 
 /**
@@ -159,4 +211,4 @@ function calcExpectedValue(specs, setting, asOfTime, currentConfig = config) {
   return { 残りG数, 期待差枚, 期待値円, 閉店まで };
 }
 
-module.exports = { analyzeHighSetting, analyzeAll, calcExpectedValue, estimateSetting };
+module.exports = { analyzeHighSetting, analyzeAll, calcExpectedValue, estimateSetting, settingPosterior };

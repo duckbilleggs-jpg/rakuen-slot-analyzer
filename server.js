@@ -741,6 +741,17 @@ function getLocalIP() {
       console.log('[Migration] storeIdマイグレーション失敗:', migErr.message);
     }
 
+    // 起動時マイグレーション: 文字化け機種名(U+FFFD)を正規名へ修復（冪等）
+    try {
+      const { fixMojibake } = require('./fix_mojibake_db');
+      const fixRes = await fixMojibake({ dryRun: false });
+      if (fixRes.fixedNames > 0) {
+        console.log(`[Migration] 文字化け機種名を修復: ${fixRes.fixedNames}種/${fixRes.fixedRecords}件`);
+      }
+    } catch (fixErr) {
+      console.log('[Migration] 文字化け修復失敗:', fixErr.message);
+    }
+
     // 起動時にMongoDBからリアルタイムキャッシュを復元（全店舗）
     try {
       const cfg = loadConfig();

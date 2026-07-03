@@ -180,14 +180,52 @@ function parsePayoutTable(html) {
   return null;
 }
 
+/**
+ * 機種名からスペックを取得（文字化け対応）
+ * スクレイプ元データの機種名に U+FFFD (�) が混入していても、
+ * 文字化け部分をワイルドカードとしてDBキーと照合する。
+ * @param {string} name - 機種名（文字化け混入の可能性あり）
+ * @param {Object} db - loadDB()の結果
+ * @returns {Object|null} スペック or null
+ */
+function findCanonicalName(name, db) {
+  if (!name) return null;
+  if (db[name]) return name;
+
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  // 1) 入力側が文字化けしている場合: �の連続を0〜4文字のワイルドカードに
+  if (name.includes('�')) {
+    try {
+      const re = new RegExp('^' + name.split(/�+/).map(esc).join('.{0,4}') + '$');
+      for (const key of Object.keys(db)) {
+        if (!key.includes('�') && re.test(key)) return key;
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // 2) 全角/半角スペース・記号ゆらぎを吸収した緩い照合
+  const norm = s => s.replace(/[\s　]/g, '').replace(/[！!]/g, '!').replace(/[～〜]/g, '~');
+  const nName = norm(name);
+  for (const key of Object.keys(db)) {
+    if (!key.includes('�') && norm(key) === nName) return key;
+  }
+
+  return null;
+}
+
+function findSpecs(name, db) {
+  const key = findCanonicalName(name, db);
+  return key ? db[key] : null;
+}
+
 /** デフォルトスペック（取得失敗時） */
 function getDefaultSpecs() {
   return { 
     s1: 97.5, s2: 98.5, s3: 100.5, s4: 105.0, s5: 108.0, s6: 112.0,
     type: 'AT',
     hitCols: ['BB', 'RB', 'ART'],
-    probThresholds: { s6: 220, s5: 240, s4: 260 },
-    tenjouG: 800
+    probThresholds: { s6: 220, s5: 240, s4: 260 }
   };
 }
 
@@ -197,7 +235,10 @@ function getDefaultSpecs() {
  */
 async function updateDBForNewMachines(machineNames) {
   const db = loadDB();
-  const unknowns = [...new Set(machineNames)].filter(name => !db[name]);
+  const unknowns = [...new Set(machineNames)].filter(name => {
+    if (name.includes('�')) return false;        // 文字化け名はDBに登録しない
+    return !findSpecs(name, db);                  // 表記ゆらぎ込みで未知のもののみ
+  });
 
   if (unknowns.length === 0) {
     console.log('[Lookup] 未知機種なし');
@@ -223,4 +264,4 @@ async function updateDBForNewMachines(machineNames) {
   return db;
 }
 
-module.exports = { lookupMachineSpecs, updateDBForNewMachines, loadDB, getDefaultSpecs };
+module.exports = { lookupMachineSpecs, updateDBForNewMachines, loadDB, getDefaultSpecs, findSpecs, findCanonicalName };

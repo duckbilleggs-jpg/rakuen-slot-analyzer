@@ -7,6 +7,7 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const path = require('path');
 const { Machine } = require('./database');
+const { loadDB, findCanonicalName } = require('./machine_lookup');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
 const DATA_DIR = path.join(__dirname, 'data');
@@ -109,10 +110,19 @@ async function scrapeRecent(days = 1, storeConfig) {
   console.log(`[Scraper] ${dates.length}件の日付を検出`);
 
   const allData = {};
+  const specDB = loadDB(); // 機種名正規化用
   for (const d of dates) {
     console.log(`[Scraper] ${d.date} (${d.url}) を取得中...`);
     const rows = await fetchDayData(d.url);
     console.log(`[Scraper]   → ${rows.length}台のデータ取得`);
+
+    // 文字化けした機種名を正規名へ補正（DB再汚染防止）
+    for (const r of rows) {
+      if (r.機種名 && r.機種名.includes('�')) {
+        const canon = findCanonicalName(r.機種名, specDB);
+        if (canon) r.機種名 = canon;
+      }
+    }
 
     // 日付文字列を正規化 (3/12(木) → 2026-03-12 etc.)
     const dateKey = normalizeDateKey(d.date);

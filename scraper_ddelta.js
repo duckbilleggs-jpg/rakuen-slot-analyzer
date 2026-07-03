@@ -7,7 +7,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { loadDB, getDefaultSpecs } = require('./machine_lookup');
+const { loadDB, getDefaultSpecs, findCanonicalName } = require('./machine_lookup');
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf-8'));
 
 const BASE_URL = 'https://www.d-deltanet.com/pc';
@@ -567,6 +567,9 @@ function analyzeRealtimeData(machines) {
             highSettingMachines.push(m);
             continue;
         }
+        // 文字化けした機種名を正規名へ補正してからスペック取得
+        const canonName = findCanonicalName(m.機種名, db);
+        if (canonName) m.機種名 = canonName;
         const specs = db[m.機種名] || getDefaultSpecs();
         const machineType = specs.type || 'AT';
         

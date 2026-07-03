@@ -281,6 +281,63 @@ app.post('/api/upload-realtime', async (req, res) => {
     }
 });
 
+/**
+ * 外部スクレイパー(ローカルPC等)から過去データを受信してMongoDBへUpsert
+ * みんレポがクラウドIPをブロックするため、ローカルPCでスクレイプした結果を受け取る
+ * Body: { storeId, days: [{ dateKey, reportId, dateRaw, machines: [{機種名,台番,差枚,G数,出率}] }] }
+ */
+app.post('/api/upload-history', async (req, res) => {
+    try {
+        const { Machine } = require('./database');
+        const { loadDB, findCanonicalName } = require('./machine_lookup');
+        const { storeId, days } = req.body;
+        if (!storeId || !Array.isArray(days)) {
+            return res.status(400).json({ error: 'storeId and days array are required' });
+        }
+
+        const specDB = loadDB();
+        let upserted = 0, modified = 0, dayCount = 0;
+        for (const day of days) {
+            if (!day || !day.dateKey || !Array.isArray(day.machines) || day.machines.length === 0) continue;
+            const ops = day.machines.map(m => {
+                let 機種名 = m.機種名;
+                if (機種名 && 機種名.includes('�')) {
+                    const canon = findCanonicalName(機種名, specDB);
+                    if (canon) 機種名 = canon;
+                }
+                return {
+                    updateOne: {
+                        filter: { storeId, dateKey: day.dateKey, 台番: Number(m.台番) },
+                        update: {
+                            $set: {
+                                storeId,
+                                dateKey: day.dateKey,
+                                reportId: day.reportId || null,
+                                dateRaw: day.dateRaw || null,
+                                機種名,
+                                台番: Number(m.台番),
+                                差枚: m.差枚 || 0,
+                                G数: m.G数 || 0,
+                                出率: m.出率 || 0
+                            }
+                        },
+                        upsert: true
+                    }
+                };
+            });
+            const r = await Machine.bulkWrite(ops, { ordered: false });
+            upserted += r.upsertedCount || 0;
+            modified += r.modifiedCount || 0;
+            dayCount++;
+        }
+        console.log(`[API] ✨ upload-history: ${storeId} ${dayCount}日分受信 (upserted:${upserted}, modified:${modified})`);
+        res.json({ status: 'ok', storeId, days: dayCount, upserted, modified });
+    } catch (e) {
+        console.error('[API] /api/upload-history エラー:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 /** 激熱予測（機種別設定⑤⑥判別ベース） */
 app.get('/api/forecast', async (req, res) => {
     try {

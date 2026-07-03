@@ -123,9 +123,15 @@
       "RB"
     ],
     "probThresholds": {
-      "s6": 121,
-      "s5": 127,
-      "s4": 135
+      "s6": 139.1,
+      "s5": 149.3,
+      "s4": 157.7
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 32,
+      "observedMedian": 169.6,
+      "calibratedAt": "2026-07-03"
     }
   },
   "Lスマスロ北斗の拳": {
@@ -136,14 +142,21 @@
     "s6": 113,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "BB",
+      "RB"
     ],
     "probThresholds": {
-      "s6": 235,
-      "s5": 250,
-      "s4": 280
+      "s6": 86.5,
+      "s5": 92.8,
+      "s4": 98.1
     },
-    "tenjouG": 999
+    "tenjouG": 999,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 16,
+      "observedMedian": 105.5,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "スマスロ 甲鉄城のカバネリ 海門決戦": {
     "s1": 97.5,
@@ -250,16 +263,21 @@
     "s6": 114.5,
     "type": "AT",
     "hitCols": [
-      "BB",
       "RB",
       "ART"
     ],
     "probThresholds": {
-      "s6": 200,
-      "s5": 250,
-      "s4": 300
+      "s6": 118.6,
+      "s5": 127.3,
+      "s4": 134.5
     },
-    "tenjouG": 800
+    "tenjouG": 800,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 8,
+      "observedMedian": 144.6,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "ニューキングハナハナV‐30": {
     "s1": 97,
@@ -292,9 +310,15 @@
       "RB"
     ],
     "probThresholds": {
-      "s6": 136,
-      "s5": 145,
-      "s4": 156
+      "s6": 132.6,
+      "s5": 142.3,
+      "s4": 150.4
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 15,
+      "observedMedian": 161.7,
+      "calibratedAt": "2026-07-03"
     }
   },
   "スマスロ秘宝伝": {
@@ -395,11 +419,17 @@
       "s6": 128
     },
     "probThresholds": {
-      "s6": 131.2,
-      "s5": 139,
-      "s4": 147.7
+      "s6": 117.1,
+      "s5": 124.2,
+      "s4": 131.9
     },
-    "source": "https://p-town.dmm.com/machines/4230"
+    "source": "https://p-town.dmm.com/machines/4230",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 14,
+      "observedMedian": 150.9,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "スマスロ ハナビ": {
     "s1": 98.6,
@@ -418,11 +448,17 @@
       "s6": 138.8
     },
     "probThresholds": {
-      "s6": 144.1,
-      "s5": 151.2,
-      "s4": 155.2
+      "s6": 145.1,
+      "s5": 152.4,
+      "s4": 156.3
     },
-    "source": "https://p.hisshobon.jp/vpage.php?c=2749&p=2"
+    "source": "https://p.hisshobon.jp/vpage.php?c=2749&p=2",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 7,
+      "observedMedian": 171,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "L不二子BT": {
     "s1": 97.6,
@@ -471,11 +507,17 @@
       "s6": 114.6
     },
     "probThresholds": {
-      "s6": 120.7,
-      "s5": 131.1,
-      "s4": 142
+      "s6": 119.3,
+      "s5": 129.6,
+      "s4": 140.3
     },
-    "source": "https://juggler7.com/my5/kaiseki.html"
+    "source": "https://juggler7.com/my5/kaiseki.html",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 36,
+      "observedMedian": 161.9,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "スマスロ化物語": {
     "s1": 97.9,
@@ -530,11 +572,17 @@
       "s6": 117.4
     },
     "probThresholds": {
-      "s6": 120.6,
-      "s5": 127.1,
-      "s4": 135.1
+      "s6": 122.2,
+      "s5": 128.9,
+      "s4": 137
     },
-    "source": "https://juggler7.com/gogo3/kaiseki.html"
+    "source": "https://juggler7.com/gogo3/kaiseki.html",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 20,
+      "observedMedian": 151.7,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "いざ！番長": {
     "s1": 97.6,
@@ -545,7 +593,8 @@
     "s6": 114.9,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "RB",
+      "ART"
     ],
     "at": {
       "s1": 386.9,
@@ -562,11 +611,17 @@
     },
     "source": "https://chonborista.com/slot/daito-slot/234092/",
     "probThresholds": {
-      "s6": 331.9,
-      "s5": 342,
-      "s4": 354.1
+      "s6": 117.5,
+      "s5": 121.1,
+      "s4": 125.3
     },
-    "tenjouG": 999
+    "tenjouG": 999,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 137,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "吉宗": {
     "s1": 97.8,
@@ -609,7 +664,8 @@
     "s6": 114.3,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "RB",
+      "ART"
     ],
     "at": {
       "s1": 309.5,
@@ -626,11 +682,17 @@
     },
     "source": "https://p.hisshobon.jp/vpage/2663/2",
     "probThresholds": {
-      "s6": 233.9,
-      "s5": 246.8,
-      "s4": 273.6
+      "s6": 69,
+      "s5": 72.8,
+      "s4": 80.7
     },
-    "tenjouG": 800
+    "tenjouG": 800,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 5,
+      "observedMedian": 91.3,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "スマスロ 沖ドキ!DUO アンコール": {
     "s1": 97.2,
@@ -640,7 +702,8 @@
     "s6": 110,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "BB",
+      "RB"
     ],
     "at": {
       "s1": 240,
@@ -656,11 +719,17 @@
     },
     "source": "https://p.hisshobon.jp/vpage/2740/2",
     "probThresholds": {
-      "s6": 186.6,
-      "s5": 198,
-      "s4": 209.9
+      "s6": 82.6,
+      "s5": 87.6,
+      "s4": 92.9
     },
-    "tenjouG": 200
+    "tenjouG": 200,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 8,
+      "observedMedian": 106.2,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "パチスロ　ディスクアップ２": {
     "s1": 99.4,
@@ -789,11 +858,17 @@
       "s6": 119.6
     },
     "probThresholds": {
-      "s6": 126.4,
-      "s5": 136.9,
-      "s4": 145.6
+      "s6": 152.4,
+      "s5": 165.1,
+      "s4": 175.7
     },
-    "source": "https://juggler7.com/funky2/kaiseki.html"
+    "source": "https://juggler7.com/funky2/kaiseki.html",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 10,
+      "observedMedian": 200.1,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "チバリヨ2": {
     "s1": 97.3,
@@ -834,7 +909,8 @@
     "s6": 114.9,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "BB",
+      "ART"
     ],
     "at": {
       "s1": 654.6,
@@ -851,11 +927,17 @@
     },
     "source": "https://p.hisshobon.jp/vpage/2681/2",
     "probThresholds": {
-      "s6": 436.6,
-      "s5": 486.6,
-      "s4": 544.2
+      "s6": 99.6,
+      "s5": 111,
+      "s4": 124.2
     },
-    "tenjouG": 999
+    "tenjouG": 999,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 7,
+      "observedMedian": 149.3,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "ニューパルサーSP4 with 太鼓の達人": {
     "s1": 97.8,
@@ -963,11 +1045,17 @@
       "s6": 149.6
     },
     "probThresholds": {
-      "s6": 156.5,
-      "s5": 165.2,
-      "s4": 168.9
+      "s6": 143.9,
+      "s5": 151.9,
+      "s4": 155.3
     },
-    "source": "https://p.hisshobon.jp/vpage/2707/2"
+    "source": "https://p.hisshobon.jp/vpage/2707/2",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 165.1,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "クレアの秘宝伝～はじまりの扉と太陽の石～ボーナストリガーver.": {
     "s1": 98.1,
@@ -1077,11 +1165,17 @@
       "s6": 131.6
     },
     "probThresholds": {
-      "s6": 135.5,
-      "s5": 140.9,
-      "s4": 143.9
+      "s6": 138,
+      "s5": 143.5,
+      "s4": 146.5
     },
-    "source": "https://1geki.jp/slot/s_shinhanabi/"
+    "source": "https://1geki.jp/slot/s_shinhanabi/",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 158.9,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "スマスロバジリスク～甲賀忍法帖～絆2 天膳 BLACK EDITION": {
     "s1": 97.4,
@@ -1297,7 +1391,7 @@
     "type": "A+AT",
     "hitCols": [
       "BB",
-      "RB"
+      "ART"
     ],
     "gassan": {
       "s1": 195.6,
@@ -1308,9 +1402,9 @@
       "s6": 183.1
     },
     "probThresholds": {
-      "s6": 184.4,
-      "s5": 186.2,
-      "s4": 188.6
+      "s6": 85.4,
+      "s5": 86.3,
+      "s4": 87.4
     },
     "at": {
       "s1": 270.4,
@@ -1326,7 +1420,13 @@
       "s4": 225
     },
     "source": "https://p.hisshobon.jp/vpage/2565/2",
-    "tenjouG": 800
+    "tenjouG": 800,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 7,
+      "observedMedian": 90.6,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "A-SLOT+ ディスクアップ ULTRAREMIX": {
     "s1": 99.3,
@@ -1345,11 +1445,17 @@
       "s6": 146.5
     },
     "probThresholds": {
-      "s6": 154.4,
-      "s5": 164.9,
-      "s4": 170.2
+      "s6": 163.2,
+      "s5": 174.4,
+      "s4": 180
     },
-    "source": "https://p.hisshobon.jp/vpage/2670/2"
+    "source": "https://p.hisshobon.jp/vpage/2670/2",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 5,
+      "observedMedian": 192.2,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "L範馬刃牙": {
     "s1": 97.7,
@@ -1428,11 +1534,17 @@
       "s6": 119.2
     },
     "probThresholds": {
-      "s6": 123.8,
-      "s5": 130.4,
-      "s4": 137.6
+      "s6": 129.9,
+      "s5": 136.9,
+      "s4": 144.5
     },
-    "source": "https://juggler7.com/girls-ss/kaiseki.html"
+    "source": "https://juggler7.com/girls-ss/kaiseki.html",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 7,
+      "observedMedian": 167.1,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "バーサスリヴァイズ": {
     "s1": 99.3,
@@ -1693,11 +1805,17 @@
       "s6": 118.7
     },
     "probThresholds": {
-      "s6": 121.6,
-      "s5": 129.4,
-      "s4": 139.9
+      "s6": 112,
+      "s5": 119.2,
+      "s4": 129
     },
-    "source": "https://juggler7.com/mrjuggler/kaiseki.html"
+    "source": "https://juggler7.com/mrjuggler/kaiseki.html",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 6,
+      "observedMedian": 144.1,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "この素晴らしい世界に祝福を！": {
     "s1": 97.9,
@@ -1739,7 +1857,8 @@
     "s6": 114.9,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "RB",
+      "ART"
     ],
     "at": {
       "s1": 564,
@@ -1752,11 +1871,17 @@
     },
     "source": "https://altema.jp/pachimo/lkarakuri",
     "probThresholds": {
-      "s6": 458.7,
-      "s5": 482.1,
-      "s4": 505.5
+      "s6": 77.6,
+      "s5": 81.6,
+      "s4": 85.6
     },
-    "tenjouG": 800
+    "tenjouG": 800,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 7,
+      "observedMedian": 95.5,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "スマスロネオプラネット": {
     "s1": 97.7,
@@ -2459,7 +2584,8 @@
     "s6": 108.1,
     "type": "AT",
     "hitCols": [
-      "BB"
+      "BB",
+      "RB"
     ],
     "at": {
       "s1": 299.6,
@@ -2475,11 +2601,17 @@
     },
     "source": "https://1geki.jp/slot/s_okidoki_gold_30/",
     "probThresholds": {
-      "s6": 242.3,
-      "s5": 252.4,
-      "s4": 261.9
+      "s6": 92.4,
+      "s5": 96.2,
+      "s4": 99.9
     },
-    "tenjouG": 200
+    "tenjouG": 200,
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 10,
+      "observedMedian": 114.2,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "パチスロ戦国恋姫": {
     "s1": 98.5,
@@ -2564,11 +2696,17 @@
       "s6": 121.6
     },
     "probThresholds": {
-      "s6": 126.2,
-      "s5": 134.7,
-      "s4": 143.2
+      "s6": 121.6,
+      "s5": 129.8,
+      "s4": 138.1
     },
-    "source": "https://p.hisshobon.jp/vpage/2662/2"
+    "source": "https://p.hisshobon.jp/vpage/2662/2",
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 6,
+      "observedMedian": 158.4,
+      "calibratedAt": "2026-07-03"
+    }
   },
   "L ＨＥＹ！エリートサラリーマン鏡": {
     "s1": 97.6,
@@ -2596,5 +2734,509 @@
       "s4": 231.4
     },
     "tenjouG": 800
+  },
+  "L 東京喰種": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 108.8,
+      "s5": 116.8,
+      "s4": 123.4
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 40,
+      "observedMedian": 132.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "スマスロ 北斗の拳 転生の章2": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 83,
+      "s5": 89.1,
+      "s4": 94.2
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 27,
+      "observedMedian": 101.3,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "L甲鉄城のカバネリ海門決戦": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 88.8,
+      "s5": 95.3,
+      "s4": 100.7
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 37,
+      "observedMedian": 108.3,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "L戦国乙女5 業火を穿つ宿焔の双刃": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 97.8,
+      "s5": 105,
+      "s4": 110.9
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 26,
+      "observedMedian": 119.3,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "ソードアート・オンラインII": {
+    "type": "AT",
+    "hitCols": [
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 101.2,
+      "s5": 108.6,
+      "s4": 114.8
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 27,
+      "observedMedian": 123.4,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lスマスロ モンキーターンＶ": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 101.4,
+      "s5": 108.8,
+      "s4": 115
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 15,
+      "observedMedian": 123.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lミリオンゴッド－神々の軌跡－": {
+    "type": "AT",
+    "hitCols": [
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 260.9,
+      "s5": 279.9,
+      "s4": 295.8
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 25,
+      "observedMedian": 318.1,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lパチスロ 炎炎ノ消防隊2": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 117,
+      "s5": 125.5,
+      "s4": 132.7
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 14,
+      "observedMedian": 142.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "ニューキングハナハナV-30": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 155.9,
+      "s5": 167.3,
+      "s4": 176.8
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 14,
+      "observedMedian": 190.1,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lパチスロ 革命機ヴァルヴレイヴ2（Lヴヴヴ2）": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 72,
+      "s5": 77.2,
+      "s4": 81.6
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 22,
+      "observedMedian": 87.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "L真打吉宗": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 87.5,
+      "s5": 93.9,
+      "s4": 99.2
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 16,
+      "observedMedian": 106.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lスーパーリオエース2": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 85.9,
+      "s5": 92.1,
+      "s4": 97.4
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 11,
+      "observedMedian": 104.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "LバイオハザードRE：3": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 37.5,
+      "s5": 40.2,
+      "s4": 42.5
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 6,
+      "observedMedian": 45.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "スマスロ 化物語": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 86.8,
+      "s5": 93.1,
+      "s4": 98.4
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 8,
+      "observedMedian": 105.8,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "沖ドキ！ゴージャス(25Φ)": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 75.1,
+      "s5": 80.6,
+      "s4": 85.1
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 5,
+      "observedMedian": 91.5,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "LBクレアの秘宝伝ボーナストリガーver.": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 155.8,
+      "s5": 167.2,
+      "s4": 176.7
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 190,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "L アズールレーン THE ANIMATION": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 72.6,
+      "s5": 77.9,
+      "s4": 82.3
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 88.5,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "パチスロ ディスクアップ２": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 135.6,
+      "s5": 145.5,
+      "s4": 153.8
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 165.4,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "L BIRDIE WING -Golf Girls Story-": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 46.4,
+      "s5": 49.7,
+      "s4": 52.6
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 56.5,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "LBサンダーV": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 154.4,
+      "s5": 165.7,
+      "s4": 175.1
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 8,
+      "observedMedian": 188.3,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "スマスロ 新鬼武者3": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 98.7,
+      "s5": 106,
+      "s4": 112
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 6,
+      "observedMedian": 120.4,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "LToLOVEるダークネス TRANCE ver.8.7": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 78.5,
+      "s5": 84.3,
+      "s4": 89.1
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 9,
+      "observedMedian": 95.8,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lスマスロかぐや様は告らせたい": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 81.6,
+      "s5": 87.5,
+      "s4": 92.5
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 8,
+      "observedMedian": 99.5,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lスマスロ ゴッドイーター リザレクション": {
+    "type": "AT",
+    "hitCols": [
+      "RB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 98.2,
+      "s5": 105.4,
+      "s4": 111.4
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 7,
+      "observedMedian": 119.8,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "L痛いのは嫌なので防御力に極振りしたいと思います。": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 79.3,
+      "s5": 85.1,
+      "s4": 89.9
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 5,
+      "observedMedian": 96.7,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "異世界かるてっと": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 77.5,
+      "s5": 83.1,
+      "s4": 87.8
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 4,
+      "observedMedian": 94.5,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "沖ドキ！ＢＬＡＣＫ": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "RB"
+    ],
+    "probThresholds": {
+      "s6": 106.5,
+      "s5": 114.2,
+      "s4": 120.7
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 6,
+      "observedMedian": 129.8,
+      "calibratedAt": "2026-07-03"
+    }
+  },
+  "Lスマスロバジリスク甲賀忍法帖絆2 天膳BLACK EDITION": {
+    "type": "AT",
+    "hitCols": [
+      "BB",
+      "ART"
+    ],
+    "probThresholds": {
+      "s6": 43,
+      "s5": 46.1,
+      "s4": 48.8
+    },
+    "calibration": {
+      "method": "hall-median-scaling",
+      "samples": 5,
+      "observedMedian": 52.4,
+      "calibratedAt": "2026-07-03"
+    }
   }
 }

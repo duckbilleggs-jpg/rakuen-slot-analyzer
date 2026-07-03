@@ -809,6 +809,19 @@ function getLocalIP() {
       console.log('[Migration] 文字化け修復失敗:', fixErr.message);
     }
 
+    // 起動時マイグレーション: 旧ユニークインデックス(dateKey+台番)を削除
+    // ※ storeIdを含まない旧インデックスが残っていると、複数店舗で同じ台番が使えない
+    try {
+      const { Machine } = require('./database');
+      const indexes = await Machine.collection.indexes();
+      if (indexes.some(ix => ix.name === 'dateKey_1_台番_1')) {
+        await Machine.collection.dropIndex('dateKey_1_台番_1');
+        console.log('[Migration] 旧インデックス dateKey_1_台番_1 を削除しました');
+      }
+    } catch (ixErr) {
+      console.log('[Migration] 旧インデックス削除スキップ:', ixErr.message);
+    }
+
     // 起動時にMongoDBからリアルタイムキャッシュを復元（全店舗）
     try {
       const cfg = loadConfig();

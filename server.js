@@ -85,7 +85,8 @@ let realtimeProgress = { current: 0, total: 0, modelName: '', storeName: '' };
 
 /** 最新の利用可能データを取得（今日→前日→前々日とフォールバック） */
 async function getLatestData(storeId) {
-  for (let i = 0; i < 3; i++) {
+  // みんレポの反映は2〜3日遅れることがあるため、7日前まで遡って最新データを探す
+  for (let i = 0; i < 7; i++) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

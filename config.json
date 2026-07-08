@@ -63,6 +63,11 @@
       "minrepoTag": "エスパス日拓赤坂見附駅前新館"
     },
     {
+      "id": "kinshicho_kitaguchi",
+      "name": "みとや 錦糸町北口",
+      "minrepoTag": "みとや錦糸町北口店"
+    },
+    {
       "id": "rakuen_ikebukuro",
       "name": "楽園 池袋グリーンサイド",
       "minrepoTag": "楽園池袋店グリーンサイド",
